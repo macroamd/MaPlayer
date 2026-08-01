@@ -1,0 +1,34 @@
+{
+  "name": "maplayer-desktop",
+  "productName": "MaPlayer",
+  "version": "1.2.0",
+  "description": "Reproductor de audio local y radios online — MaPlayer, por Macroamd.",
+  "author": "Macroamd",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --linux AppImage"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.macroamd.maplayer.desktop",
+    "productName": "MaPlayer",
+    "files": [
+      "main.js",
+      "app/**/*"
+    ],
+    "linux": {
+      "target": ["AppImage"],
+      "category": "AudioVideo",
+      "icon": "app/icons/icon-512.png",
+      "executableName": "maplayer"
+    },
+    "appImage": {
+      "artifactName": "MaPlayer-${version}-x86_64.AppImage"
+    }
+  }
+}

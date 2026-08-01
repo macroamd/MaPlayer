@@ -1,0 +1,2952 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>MaPlayer</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0A0B0D">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MaPlayer">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+</head>
+<body>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+  :root{
+    --bg:#0A0B0D;
+    --panel:#141519;
+    --panel-2:#1B1D22;
+    --line:#2A2D34;
+    --text:#E8EAED;
+    --muted:#7A7F8A;
+    --led-green:#3CFF7A;
+    --led-amber:#FFC93C;
+    --led-red:#FF3B5C;
+    --cyan:#00F2EA;
+    --radius:14px;
+  }
+  * { box-sizing:border-box; }
+  html, body{ margin:0; padding:0; background:#000000; }
+  .sb-app{
+    background:#000000;
+    color:var(--text);
+    font-family:'Space Grotesk', sans-serif;
+    padding:clamp(14px, 5vw, 28px) clamp(10px, 4vw, 16px) clamp(20px, 6vh, 40px);
+    min-height:100vh;
+    min-height:100dvh;
+    display:flex;
+    justify-content:center;
+    width:100%;
+  }
+  .console{ width:100%; max-width:min(2200px, 97vw); }
+  .console-head{
+    display:grid;
+    grid-template-columns:1fr auto 1fr;
+    align-items:start;
+    margin-bottom:18px; gap:8px;
+  }
+  .live-pill-wrap{ display:flex; justify-content:flex-end; }
+  .brand{ display:flex; flex-direction:column; align-items:center; gap:6px; flex:1; text-align:center; }
+  .brand-row{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; justify-content:center; }
+  .brand b{ font-size:17px; font-weight:700; letter-spacing:0.5px; }
+  .brand span{ font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:1.2px; text-transform:uppercase;}
+  .live-pill{
+    display:flex; align-items:center; gap:6px;
+    font-family:'Share Tech Mono',monospace;
+    font-size:11px; letter-spacing:1px;
+    color:var(--led-red);
+    border:1px solid rgba(255,59,92,0.4);
+    padding:4px 10px; border-radius:20px;
+    background:rgba(255,59,92,0.08);
+    white-space:nowrap;
+  }
+  .live-dot{ width:6px;height:6px;border-radius:50%; background:var(--led-red); box-shadow:0 0 8px var(--led-red); animation:blink 1.6s infinite; }
+  @keyframes blink{ 0%,100%{opacity:1} 50%{opacity:0.25} }
+
+  .panel{
+    background:linear-gradient(180deg, var(--panel-2), var(--panel));
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:clamp(14px, 4.5vw, 26px);
+    margin-bottom:clamp(10px, 3vw, 18px);
+    box-shadow: 0 20px 50px -20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.03);
+  }
+
+  .field-label{
+    font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:1.5px;
+    color:var(--muted); text-transform:uppercase; margin-bottom:8px; display:block;
+  }
+
+  .load-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  input[type="file"]{ display:none; }
+  .load-btn{
+    flex:1;
+    font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:0.5px;
+    text-align:center; text-transform:uppercase;
+    color:var(--btn-text,#04211d); background:var(--led-green);
+    border:none; border-radius:12px; padding:3px 6px; cursor:pointer;
+    min-width:0;
+  }
+  .load-btn.secondary{ background:var(--bg); color:var(--text); border:1px solid var(--line); }
+  .load-btn.danger{ flex:0 0 auto; min-width:0; background:var(--bg); color:var(--led-red); border:1px solid rgba(255,59,92,0.4); }
+  .load-btn.danger:hover{ background:rgba(255,59,92,0.1); }
+  .load-btn.radio{ flex:0 0 auto; min-width:0; background:var(--bg); color:var(--cyan); border:1px solid rgba(0,242,234,0.4); }
+  .load-btn.radio:hover{ background:rgba(0,242,234,0.1); }
+
+  .radio-modal{
+    display:none;
+    position:fixed; inset:0; z-index:100;
+    background:rgba(0,0,0,0.7);
+    align-items:center; justify-content:center;
+    padding:20px;
+  }
+  .radio-modal.open{ display:flex; }
+  .radio-dialog{
+    width:100%; max-width:420px;
+    background:linear-gradient(180deg, var(--panel-2), var(--panel));
+    border:1px solid var(--line); border-radius:14px;
+    padding:22px;
+    box-shadow:0 30px 70px -20px rgba(0,0,0,0.8);
+    position:relative;
+  }
+  .radio-dialog-title{ font-size:16px; font-weight:700; margin-bottom:16px; }
+  /* El modal de "Añadir emisora" necesita más alto para ver bien la lista
+     de canales, sin afectar al resto de modales que comparten .radio-dialog. */
+  #radioModal .radio-dialog{ max-width:480px; max-height:82vh; display:flex; flex-direction:column; }
+  #radioModal .radio-saved-list{ flex:1; max-height:none; }
+  .radio-field-label{
+    display:block;
+    font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:1.5px;
+    color:var(--muted); text-transform:uppercase; margin-bottom:6px;
+  }
+  .radio-input-text{
+    width:100%; box-sizing:border-box;
+    background:var(--bg); color:var(--text);
+    border:1px solid var(--line); border-radius:10px;
+    padding:10px 12px; font-family:'Space Grotesk',sans-serif; font-size:14px;
+    margin-bottom:14px; outline:none;
+  }
+  .radio-input-text:focus{ border-color:var(--cyan); }
+  .radio-hint{ font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--muted); margin-bottom:6px; }
+  .radio-error{ color:var(--led-red); font-size:12px; min-height:16px; margin-bottom:8px; }
+  .radio-actions{ display:flex; justify-content:center; flex-wrap:wrap; gap:10px; }
+  .radio-add{
+    font-family:'Share Tech Mono',monospace; font-size:11px; letter-spacing:0.5px;
+    border-radius:20px; padding:9px 16px; cursor:pointer; text-transform:uppercase;
+    background:transparent; color:var(--cyan); border:1px solid var(--cyan);
+  }
+  .radio-add:hover{ background:rgba(0,242,234,0.1); }
+
+  .radio-saved-head{
+    font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:1.5px;
+    color:var(--muted); text-transform:uppercase;
+    margin:20px 0 8px; padding-top:16px; border-top:1px solid var(--line);
+    display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;
+  }
+  .radio-saved-head-actions{ display:flex; gap:6px; flex-wrap:wrap; }
+  .radio-mini-btn{
+    font-family:'Share Tech Mono',monospace; font-size:9px; letter-spacing:0.5px;
+    color:var(--cyan); background:rgba(0,242,234,0.08);
+    border:1px solid rgba(0,242,234,0.4); border-radius:12px;
+    padding:4px 9px; cursor:pointer; text-transform:uppercase;
+  }
+  .radio-mini-btn-danger{ color:var(--led-red); background:rgba(255,59,92,0.08); border-color:rgba(255,59,92,0.4); }
+  .radio-mini-btn-danger:hover{ background:rgba(255,59,92,0.16); }
+  .radio-mini-btn:hover{ background:rgba(0,242,234,0.16); }
+  .radio-saved-list{ max-height:180px; overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--cyan) var(--line); }
+  .radio-saved-list::-webkit-scrollbar{ width:8px; }
+  .radio-saved-list::-webkit-scrollbar-track{ background:var(--line); border-radius:4px; }
+  .radio-saved-list::-webkit-scrollbar-thumb{ background:var(--cyan); border-radius:4px; }
+  .radio-saved-empty{ font-size:12px; color:var(--muted); text-align:center; padding:14px 0; }
+  .radio-saved-row{
+    display:flex; align-items:center; gap:10px;
+    padding:9px 10px; border-radius:8px; cursor:pointer;
+  }
+  .radio-saved-row:hover{ background:var(--bg); }
+  .radio-saved-icon{ flex:0 0 auto; }
+  .radio-saved-name{ flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:13px; }
+  .radio-saved-del{
+    flex:0 0 22px; width:22px; height:22px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--muted); background:transparent; border:1px solid var(--line);
+    cursor:pointer; font-size:12px; line-height:1;
+  }
+  .radio-saved-del:hover{ color:var(--led-red); border-color:var(--led-red); background:rgba(255,59,92,0.08); }
+
+  .cover-modal{
+    display:none;
+    position:fixed; inset:0; z-index:110;
+    background:rgba(0,0,0,0.85);
+    align-items:center; justify-content:center;
+    padding:20px;
+  }
+  .cover-modal.open{ display:flex; }
+  .cover-modal-inner{
+    position:relative;
+    width:100%; max-width:420px;
+    display:flex; flex-direction:column; align-items:center; gap:14px;
+  }
+  .cover-modal-close{
+    position:absolute; top:-6px; right:-6px;
+    width:34px; height:34px; border-radius:50%;
+    background:var(--panel); color:var(--text);
+    border:1px solid var(--line); cursor:pointer; font-size:14px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .cover-modal-close:hover{ border-color:var(--led-red); color:var(--led-red); }
+  .cover-modal-art{
+    width:100%; aspect-ratio:1/1; max-width:360px;
+    border-radius:16px; overflow:hidden;
+    border:1px solid var(--line);
+    box-shadow:0 30px 70px -20px rgba(0,0,0,0.8);
+  }
+  .cover-modal-art img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .cover-modal-title{ font-size:18px; font-weight:700; text-align:center; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cover-modal-artist{ font-family:'Share Tech Mono',monospace; font-size:12px; color:var(--muted); text-align:center; margin-top:-8px; }
+  .cover-modal-progress{ width:100%; max-width:360px; display:flex; align-items:center; gap:8px; }
+  .cover-modal-transport{ display:flex; align-items:center; gap:14px; }
+
+  .track-save{
+    flex:0 0 22px; width:22px; height:22px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--muted); background:transparent; border:1px solid var(--line);
+    cursor:pointer; font-size:11px; line-height:1;
+  }
+  .track-save:hover{ color:var(--cyan); border-color:var(--cyan); background:rgba(0,242,234,0.08); }
+  .track-save.saved{ color:var(--cyan); border-color:rgba(0,242,234,0.5); }
+
+  .nowplaying{
+    display:flex; align-items:center; gap:clamp(10px, 3vw, 14px);
+    margin-top:14px;
+    padding:clamp(8px, 2.5vw, 10px);
+    background:var(--bg);
+    border:1px solid var(--line);
+    border-radius:10px;
+  }
+  .cover-frame{
+    width:clamp(88px, 20vw, 240px); height:clamp(88px, 20vw, 240px);
+    flex:0 0 clamp(88px, 20vw, 240px);
+    border-radius:10px;
+    background:linear-gradient(135deg,#1E2027,#26282F);
+    border:1px solid var(--line);
+    overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+    cursor:zoom-in;
+  }
+  .cover-frame img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .cover-frame svg{ width:38%; height:38%; opacity:0.35; }
+
+  .video-frame{
+    display:none; /* solo se muestra si la pista actual resulta tener vídeo real */
+    position:relative; background:#000; cursor:default;
+  }
+  .video-frame video{ width:100%; height:100%; object-fit:contain; display:block; background:#000; }
+  .fullscreen-btn{
+    position:absolute; right:5px; bottom:5px;
+    width:26px; height:26px; border-radius:6px;
+    background:rgba(0,0,0,0.55); color:#fff;
+    border:1px solid rgba(255,255,255,0.25);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; padding:0;
+  }
+  .fullscreen-btn svg{ width:14px; height:14px; }
+  .fullscreen-btn:hover{ background:rgba(0,0,0,0.75); }
+
+  .np-text{ min-width:0; flex:1; }
+  .np-title{ font-size:clamp(13px, 3.4vw, 22px); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .np-title.scrolling{ text-overflow:clip; }
+  .np-title.scrolling span{
+    display:inline-block; white-space:nowrap;
+    padding-left:100%; will-change:transform;
+    animation:marquee 12s linear infinite;
+  }
+  .np-artist{ font-family:'Share Tech Mono',monospace; font-size:clamp(10px, 2.6vw, 15px); color:var(--muted); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  .transport{ display:flex; align-items:center; gap:8px; margin-top:14px; min-width:0; }
+  .tbtn{
+    width:clamp(38px, 10vw, 46px); height:clamp(38px, 10vw, 46px); border-radius:50%;
+    background:var(--bg); border:1px solid var(--line); color:var(--text);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    flex:0 0 auto;
+  }
+  .tbtn.play{ background:var(--led-green); border-color:var(--led-green); color:var(--btn-text,#04211d); width:clamp(44px, 12vw, 54px); height:clamp(44px, 12vw, 54px); }
+  .tbtn svg{ width:16px; height:16px; }
+  .progress-wrap{ flex:1; min-width:0; display:flex; align-items:center; gap:6px; }
+  .progress-time{ font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--muted); min-width:28px; flex:0 0 auto; text-align:center; }
+  input[type=range].seek{
+    flex:1; min-width:0; -webkit-appearance:none; height:4px; border-radius:2px;
+    background:var(--line); outline:none;
+  }
+  input[type=range].seek::-webkit-slider-thumb{
+    -webkit-appearance:none; width:12px; height:12px; border-radius:50%;
+    background:var(--led-green); cursor:pointer;
+  }
+
+  .loop-row{
+    display:flex; align-items:center; justify-content:center;
+    flex-wrap:wrap; row-gap:8px; column-gap:8px;
+    margin-top:14px;
+  }
+  .loop-buttons{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .loop-left{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .loop-right{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .loop-btn.speed{ min-width:36px; justify-content:center; }
+  .loop-btn.speed.active{ color:var(--cyan); border-color:rgba(0,242,234,0.4); background:rgba(0,242,234,0.08); }
+  .loop-btn{
+    font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:0.3px;
+    color:var(--muted); background:var(--bg);
+    border:1px solid var(--line); border-radius:20px;
+    padding:5px 10px; cursor:pointer;
+    display:flex; align-items:center; gap:5px;
+    white-space:nowrap;
+    line-height:14px;
+  }
+  .loop-btn.once{ color:var(--led-amber); border-color:rgba(255,201,60,0.4); background:rgba(255,201,60,0.08); }
+  .loop-btn.cycle{ color:var(--muted); border-color:var(--line); background:var(--bg); }
+  #loopToggle{ padding:5px 11px; }
+  .loop-btn.shuffle-off{ color:var(--muted); border-color:var(--line); background:var(--bg); }
+  .loop-btn.shuffle-on{ color:var(--cyan); border-color:rgba(0,242,234,0.4); background:rgba(0,242,234,0.08); }
+  .loop-btn.silence-off{ color:var(--muted); border-color:var(--line); background:var(--bg); }
+  .loop-btn.silence-on{ color:var(--led-amber); border-color:rgba(255,201,60,0.4); background:rgba(255,201,60,0.08); }
+
+  .toast{
+    position:fixed; left:50%; bottom:36px; z-index:200;
+    transform:translate(-50%, 12px);
+    background:var(--panel-2); color:var(--text);
+    border:1px solid var(--line); border-radius:20px;
+    padding:9px 18px;
+    font-family:'Share Tech Mono',monospace; font-size:12px; letter-spacing:0.3px;
+    box-shadow:0 12px 30px -10px rgba(0,0,0,0.7);
+    opacity:0; pointer-events:none;
+    transition:opacity .18s ease, transform .18s ease;
+    white-space:nowrap;
+    max-width:90vw; overflow:hidden; text-overflow:ellipsis;
+  }
+  .toast.show{ opacity:1; transform:translate(-50%, 0); }
+
+  .about-dialog{ text-align:center; position:relative; }
+  .about-logo{ display:flex; justify-content:center; margin-bottom:6px; }
+  .about-version{
+    font-family:'Share Tech Mono',monospace; font-size:12px; color:var(--muted);
+    letter-spacing:0.5px; margin-bottom:10px;
+  }
+  .about-author{ font-size:13px; margin-bottom:14px; }
+  .about-author strong{ color:var(--led-green); }
+  .about-desc{ font-size:13px; color:var(--muted); line-height:1.5; margin-bottom:14px; text-align:justify; text-align-last:center; }
+  .about-features{
+    text-align:left; list-style:none; padding:0; margin:0 0 14px;
+    font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--text);
+    display:flex; flex-direction:column; gap:7px;
+  }
+  .about-features li{ padding-left:16px; position:relative; line-height:1.4; }
+  .about-features li::before{
+    content:'●'; position:absolute; left:0; color:var(--led-green); font-size:8px; top:5px;
+  }
+  .about-footer{ font-size:11px; color:var(--muted); margin-bottom:4px; }
+
+  .playlist{
+    margin-top:14px;
+    max-height:clamp(160px, 26vh, 280px);
+    overflow-y:auto;
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:var(--bg);
+    scrollbar-width:thin;
+    scrollbar-color:var(--led-green) var(--line);
+  }
+  .playlist::-webkit-scrollbar{ width:8px; }
+  .playlist::-webkit-scrollbar-track{ background:var(--line); border-radius:4px; }
+  .playlist::-webkit-scrollbar-thumb{ background:var(--led-green); border-radius:4px; }
+  .playlist::-webkit-scrollbar-thumb:hover{ background:var(--led-green); opacity:0.85; }
+  .track-row{
+    display:flex; align-items:center; gap:10px;
+    padding:9px 12px;
+    font-size:13px;
+    cursor:pointer;
+    border-bottom:1px solid var(--line);
+  }
+  .track-row:last-child{ border-bottom:none; }
+  .track-row:hover{ background:var(--panel-2); }
+  .track-row.active{ background:rgba(60,255,122,0.08); color:var(--led-green); }
+  .track-row.unsupported{ color:var(--led-red); opacity:0.75; }
+  .track-row.unsupported.active{ background:rgba(255,59,92,0.08); color:var(--led-red); }
+  .track-row.pending{ color:var(--cyan); opacity:0.8; font-style:italic; }
+  .track-row.pending.active{ background:rgba(0,242,234,0.08); color:var(--cyan); }
+  .track-index{ font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--muted); width:20px; flex:0 0 20px; }
+  .track-name{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; min-width:0; }
+  .track-row.active .track-name.scrolling{
+    text-overflow:clip;
+    overflow:hidden;
+  }
+  .track-row.active .track-name.scrolling span{
+    display:inline-block;
+    white-space:nowrap;
+    padding-left:100%;
+    will-change:transform;
+    animation:marquee 12s linear infinite;
+  }
+  @keyframes marquee{
+    from { transform:translateX(0); }
+    to   { transform:translateX(-100%); }
+  }
+  .track-remove{
+    flex:0 0 22px; width:22px; height:22px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--muted); background:transparent; border:1px solid var(--line);
+    cursor:pointer; font-size:12px; line-height:1;
+  }
+  .track-remove:hover{ color:var(--led-red); border-color:var(--led-red); background:rgba(255,59,92,0.08); }
+  .empty-hint{ padding:20px 12px; font-size:12px; color:var(--muted); text-align:center; }
+
+  .viz-head{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:12px; flex-wrap:wrap; gap:6px;
+  }
+  .viz-title{ font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase; }
+  .viz-controls{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .viz-view-btn{
+    font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:0.5px;
+    color:var(--led-green); background:rgba(60,255,122,0.08);
+    border:1px solid rgba(60,255,122,0.4); border-radius:12px;
+    padding:3px 10px; cursor:pointer; text-transform:uppercase;
+  }
+  .viz-view-btn:hover{ background:rgba(60,255,122,0.16); }
+  .viz-view-btn.active{ background:var(--led-green); color:#04211d; }
+
+  .eq-panel{
+    display:flex;
+    align-items:flex-end; justify-content:center; gap:26px;
+    background:var(--bg); border:1px solid var(--line);
+    border-radius:8px; padding:16px 10px 12px;
+  }
+
+  .color-panel{
+    display:block;
+    background:var(--bg); border:1px solid var(--line);
+    border-radius:8px; padding:16px 14px 14px;
+  }
+  .eq-band{ display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .eq-slider{
+    -webkit-appearance:slider-vertical; appearance:slider-vertical;
+    width:8px; height:90px; writing-mode:vertical-lr; direction:rtl;
+  }
+  .eq-label{ font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:0.5px; color:var(--muted); text-transform:uppercase; }
+  .eq-val{ font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--led-green); }
+  .eq-reset{
+    align-self:center;
+    font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:0.5px;
+    color:var(--muted); background:transparent; border:1px solid var(--line);
+    border-radius:12px; padding:5px 12px; cursor:pointer; text-transform:uppercase;
+  }
+  .eq-reset:hover{ color:var(--text); border-color:var(--muted); }
+  .viz-mode{
+    font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:1px;
+    padding:3px 8px; border-radius:12px; text-transform:uppercase;
+  }
+  .viz-mode.real{ color:var(--led-green); background:rgba(60,255,122,0.1); border:1px solid rgba(60,255,122,0.35); }
+  .viz-mode.idle{ color:var(--muted); background:rgba(122,127,138,0.08); border:1px solid var(--line); }
+
+  .led-grid{
+    display:flex; align-items:flex-end; gap:4px;
+    height:clamp(110px, 22vh, 240px);
+    background:var(--bg);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:10px 10px 8px;
+  }
+  .led-col{ flex:1; display:flex; flex-direction:column-reverse; gap:3px; height:100%; }
+  .led-seg{ width:100%; flex:1; border-radius:2px; background:#1E2027; transition: background-color .06s linear; }
+
+  .viz-canvas{
+    display:none;
+    width:100%; height:clamp(110px, 22vh, 240px);
+    background:var(--bg);
+    border:1px solid var(--line);
+    border-radius:8px;
+  }
+
+  .rgb-row{ display:flex; flex-direction:column; gap:10px; }
+  .rgb-field{ display:grid; grid-template-columns:16px 1fr 34px; align-items:center; gap:10px; }
+  .rgb-field label{ font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--muted); }
+  .rgb-value{ font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--muted); text-align:right; }
+  input.rgb-slider{ -webkit-appearance:none; height:4px; border-radius:2px; outline:none; }
+  input.rgb-slider.r{ background:linear-gradient(90deg,#000,#ff3b3b); }
+  input.rgb-slider.g{ background:linear-gradient(90deg,#000,#3cff7a); }
+  input.rgb-slider.b{ background:linear-gradient(90deg,#000,#3b6bff); }
+  input.rgb-slider::-webkit-slider-thumb{
+    -webkit-appearance:none; width:14px; height:14px; border-radius:50%;
+    background:#fff; border:2px solid var(--bg); cursor:pointer;
+  }
+  .rgb-preview-row{ display:flex; align-items:center; gap:12px; margin-top:14px; }
+  .rgb-swatch{
+    width:44px; height:44px; flex:0 0 44px; border-radius:8px;
+    border:1px solid var(--line);
+    background:rgb(60,255,122);
+  }
+</style>
+
+<div class="sb-app">
+  <div class="console">
+
+    <div class="panel">
+      <span class="field-label">Reproductor</span>
+      <div class="nowplaying">
+        <div class="cover-frame" id="coverFrame">
+          <img src="" id="defaultCoverImg" alt="carátula">
+        </div>
+        <div class="cover-frame video-frame" id="videoFrame">
+          <video id="localAudio" playsinline webkit-playsinline></video>
+          <button class="fullscreen-btn" id="fullscreenBtn" type="button" title="Pantalla completa">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3"/>
+              <path d="M16 3h3a2 2 0 0 1 2 2v3"/>
+              <path d="M8 21H5a2 2 0 0 1-2-2v-3"/>
+              <path d="M16 21h3a2 2 0 0 0 2-2v-3"/>
+            </svg>
+          </button>
+        </div>
+        <div class="np-text">
+          <div class="np-title" id="npTitle">Ninguna pista cargada</div>
+          <div class="np-artist" id="npArtist">Elige archivos o una carpeta para empezar</div>
+        </div>
+      </div>
+
+      <div class="transport">
+        <div class="tbtn" id="btnPrev" title="Anterior">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+        </div>
+        <div class="tbtn play" id="btnPlay" title="Reproducir">
+          <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        </div>
+        <div class="tbtn" id="btnNext" title="Siguiente">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM6 6l8.5 6L6 18z"/></svg>
+        </div>
+        <div class="progress-wrap">
+          <span class="progress-time" id="curTime">0:00</span>
+          <input type="range" class="seek" id="seek" min="0" max="100" value="0">
+          <span class="progress-time" id="durTime">0:00</span>
+        </div>
+      </div>
+
+
+
+      <div class="loop-row">
+        <div class="loop-left">
+          <button class="loop-btn" id="playlistBtn" type="button" title="Listas de reproducción"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+          <button class="loop-btn shuffle-off" id="shuffleToggle" type="button" title="Orden (secuencial)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6H8"/><path d="M11 3L8 6l3 3"/><path d="M4 18h12"/><path d="M13 15l3 3-3 3"/></svg></button>
+          <button class="loop-btn silence-off" id="silenceToggle" type="button" title="Silencio (mantiene el silencio final)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h6l4 4-4 4H3"/><path d="M21 8h-6l-4 4 4 4h6"/></svg></button>
+        </div>
+        <div class="loop-right">
+          <button class="loop-btn speed" id="speedToggle" type="button">1×</button>
+          <button class="loop-btn cycle" id="loopToggle" type="button" title="Cíclica">↻</button>
+        </div>
+      </div>
+
+      <div class="playlist" id="playlistEl">
+        <div class="empty-hint">Tu lista de reproducción aparecerá aquí</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="viz-head">
+        <span class="viz-title">Visualizador</span>
+        <div class="viz-controls">
+          <button class="viz-view-btn" id="colorToggle" type="button">Color</button>
+          <button class="viz-view-btn" id="eqToggle" type="button">EQZ</button>
+          <button class="viz-view-btn" id="vizViewToggle" type="button">LED</button>
+          <button class="viz-view-btn" id="wakeLockToggle" type="button" title="Evita que la pantalla se apague">Pant</button>
+          <span class="viz-mode idle" id="vizModeBadge">ESPERA</span>
+        </div>
+      </div>
+      <div class="viz-display" id="vizDisplay" title="Doble clic para ver Acerca de">
+        <div class="led-grid" id="ledGrid"></div>
+        <canvas class="viz-canvas" id="vizCanvas" width="700" height="130"></canvas>
+      </div>
+    </div>
+
+    <div class="panel">
+      <span class="field-label">Cargar música</span>
+      <div class="load-row">
+        <label class="load-btn secondary" for="filesInput">Archivos</label>
+        <label class="load-btn secondary" for="folderInput">Carpeta</label>
+        <button class="load-btn radio" id="radioBtn" type="button">Emisión</button>
+        <button class="load-btn danger" id="clearPlaylist" type="button">Vaciar</button>
+      </div>
+      <input type="file" id="filesInput" accept="audio/*" multiple>
+      <input type="file" id="folderInput" accept=".macroamd-folder-marker" webkitdirectory directory multiple>
+    </div>
+  </div>
+
+  <!-- Modal para añadir emisora de radio por URL -->
+  <div class="radio-modal" id="radioModal">
+    <div class="radio-dialog">
+      <button class="cover-modal-close" id="radioCancel" type="button">✕</button>
+      <div class="radio-dialog-title">Añadir emisora</div>
+      <label class="radio-field-label" for="radioName">Nombre (opcional)</label>
+      <input type="text" class="radio-input-text" id="radioName" placeholder="Mi emisora">
+      <label class="radio-field-label" for="radioUrl">URL del flujo</label>
+      <input type="text" class="radio-input-text" id="radioUrl" placeholder="https://ejemplo.com/stream.mp3">
+      <div class="radio-hint">Formatos: mp3, aac, m3u, m3u8, stream</div>
+      <div class="radio-error" id="radioError"></div>
+      <div class="radio-actions">
+        <button class="radio-add" id="radioAdd" type="button">Añadir y reproducir</button>
+      </div>
+
+      <div class="radio-saved-head">
+        <span>Emisoras guardadas</span>
+        <span class="radio-saved-head-actions">
+          <button class="radio-mini-btn" id="stationsExportBtn" type="button">Exportar M3U</button>
+          <button class="radio-mini-btn" id="stationsExportPlsBtn" type="button">Exportar PLS</button>
+          <button class="radio-mini-btn" id="stationsImportBtn" type="button">Abrir</button>
+          <button class="radio-mini-btn radio-mini-btn-danger" id="stationsClearBtn" type="button">Vaciar</button>
+        </span>
+      </div>
+      <div class="radio-saved-list" id="radioSavedList">
+        <div class="radio-saved-empty">No hay emisoras guardadas todavía</div>
+      </div>
+      <input type="file" id="stationsImportInput" accept="application/json,.json,.m3u,.m3u8,audio/x-mpegurl,audio/mpegurl,application/vnd.apple.mpegurl,.pls,audio/x-scpls,application/x-scpls" style="display:none">
+    </div>
+  </div>
+
+  <!-- Modal de listas de reproducción -->
+  <div class="radio-modal" id="playlistModal">
+    <div class="radio-dialog">
+      <button class="cover-modal-close" id="playlistCancel" type="button">✕</button>
+      <div class="radio-dialog-title">Listas de reproducción</div>
+
+      <label class="radio-field-label" for="playlistSaveName">Guardar la lista actual como</label>
+      <input type="text" class="radio-input-text" id="playlistSaveName" placeholder="Mi lista">
+      <div class="radio-hint">Las emisoras de radio se recuperan al instante. Los archivos locales se recuerdan por nombre: al abrir la lista, elige la carpeta que los contiene y se emparejan solos.</div>
+      <div class="radio-error" id="playlistError"></div>
+      <div class="radio-actions">
+        <button class="radio-add" id="playlistSave" type="button">Guardar lista actual</button>
+      </div>
+
+      <div class="radio-saved-head">
+        <span>Archivo de lista (.pls)</span>
+        <span class="radio-saved-head-actions">
+          <button class="radio-mini-btn" id="playlistOpenFileBtn" type="button">Abrir</button>
+          <button class="radio-mini-btn" id="playlistExportFileBtn" type="button">Exportar</button>
+        </span>
+      </div>
+      <input type="file" id="playlistImportInput" accept=".pls,.m3u,.m3u8,.json,audio/x-scpls,application/x-scpls,audio/x-mpegurl,audio/mpegurl,application/vnd.apple.mpegurl,application/json" style="display:none">
+
+      <div class="radio-saved-head">Listas guardadas</div>
+      <div class="radio-saved-list" id="playlistSavedList">
+        <div class="radio-saved-empty">No hay listas guardadas todavía</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Modal de color de acento -->
+  <div class="radio-modal" id="colorModal">
+    <div class="radio-dialog">
+      <button class="cover-modal-close" id="colorModalClose" type="button">✕</button>
+      <div class="radio-dialog-title">Color</div>
+      <div class="color-panel" id="colorPanel">
+        <div class="rgb-row">
+          <div class="rgb-field">
+            <label for="rSlider">R</label>
+            <input type="range" min="0" max="255" value="60" id="rSlider" class="rgb-slider r">
+            <span class="rgb-value" id="rVal">60</span>
+          </div>
+          <div class="rgb-field">
+            <label for="gSlider">G</label>
+            <input type="range" min="0" max="255" value="255" id="gSlider" class="rgb-slider g">
+            <span class="rgb-value" id="gVal">255</span>
+          </div>
+          <div class="rgb-field">
+            <label for="bSlider">B</label>
+            <input type="range" min="0" max="255" value="122" id="bSlider" class="rgb-slider b">
+            <span class="rgb-value" id="bVal">122</span>
+          </div>
+        </div>
+        <div class="rgb-preview-row">
+          <div class="rgb-swatch" id="rgbSwatch"></div>
+          <select class="sb-select" id="presetSelect">
+            <option value="60,255,122">Verde LED (por defecto)</option>
+            <option value="0,242,234">Cian</option>
+            <option value="255,46,99">Magenta</option>
+            <option value="255,201,60">Ámbar</option>
+            <option value="150,90,255">Violeta</option>
+            <option value="255,255,255">Blanco</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de ecualizador -->
+  <div class="radio-modal" id="eqModal">
+    <div class="radio-dialog">
+      <button class="cover-modal-close" id="eqModalClose" type="button">✕</button>
+      <div class="radio-dialog-title">Ecualizador</div>
+      <div class="eq-panel" id="eqPanel">
+        <div class="eq-band">
+          <input type="range" min="-12" max="12" value="0" step="1" id="eqLowSlider" class="eq-slider" orient="vertical">
+          <span class="eq-label">Graves</span>
+          <span class="eq-val" id="eqLowVal">0 dB</span>
+        </div>
+        <div class="eq-band">
+          <input type="range" min="-12" max="12" value="0" step="1" id="eqMidSlider" class="eq-slider" orient="vertical">
+          <span class="eq-label">Medios</span>
+          <span class="eq-val" id="eqMidVal">0 dB</span>
+        </div>
+        <div class="eq-band">
+          <input type="range" min="-12" max="12" value="0" step="1" id="eqHighSlider" class="eq-slider" orient="vertical">
+          <span class="eq-label">Agudos</span>
+          <span class="eq-val" id="eqHighVal">0 dB</span>
+        </div>
+        <button class="eq-reset" id="eqReset" type="button">Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Acerca de -->
+  <div class="radio-modal" id="aboutModal">
+    <div class="radio-dialog about-dialog">
+      <button class="cover-modal-close" id="aboutClose" type="button">✕</button>
+      <div class="about-logo">
+        <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="var(--led-green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="8" cy="17" r="3.2"/>
+          <circle cx="17" cy="15" r="3.2"/>
+          <path d="M11.2 17V6.5L20.2 4.7V15"/>
+        </svg>
+      </div>
+      <div class="radio-dialog-title">MaPlayer</div>
+      <div class="about-version" id="aboutVersion">Versión 1.2</div>
+      <div class="about-author">Desarrollado por <strong>Macroamd</strong></div>
+      <div class="about-desc">
+        Un reproductor de audio sencillo y funcional: tu música local y tus
+        emisoras de radio favoritas, sin cuentas, sin anuncios y sin complicaciones.
+      </div>
+      <ul class="about-features">
+        <li>Reproducción de archivos locales y carpetas completas</li>
+        <li>Radios online con logo automático de emisora</li>
+        <li>Ecualizador de 3 bandas y visualizador (LED / columnas / ondas)</li>
+        <li>Listas de reproducción guardables</li>
+        <li>Notificación con controles y funciona con la pantalla apagada</li>
+      </ul>
+      <div class="about-footer">Hecho con 🎧 para quienes solo quieren darle al play.</div>
+    </div>
+  </div>
+
+  <!-- Modal de carátula ampliada -->
+  <div class="cover-modal" id="coverModal">
+    <div class="cover-modal-inner">
+      <button class="cover-modal-close" id="coverModalClose" type="button">✕</button>
+      <div class="cover-modal-art"><img id="coverModalImg" src="" alt="carátula"></div>
+      <div class="cover-modal-title" id="coverModalTitle"></div>
+      <div class="cover-modal-artist" id="coverModalArtist"></div>
+      <div class="cover-modal-progress">
+        <span class="progress-time" id="coverModalCur">0:00</span>
+        <input type="range" class="seek" id="coverModalSeek" min="0" max="100" value="0">
+        <span class="progress-time" id="coverModalDur">0:00</span>
+      </div>
+      <div class="cover-modal-transport">
+        <div class="tbtn" id="coverModalPrev" title="Anterior">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+        </div>
+        <div class="tbtn play" id="coverModalPlay" title="Reproducir">
+          <svg id="coverModalPlayIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        </div>
+        <div class="tbtn" id="coverModalNext" title="Siguiente">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM6 6l8.5 6L6 18z"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>document.title = 'macroamd-player';</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+<script>
+(function(){
+
+  // Nombre de archivo -> content:// URI persistente (solo para archivos
+  // elegidos con "Carpeta", ya que ahi Android si concede permiso duradero).
+  // La app nativa lo va rellenando cada vez que se elige una carpeta; lo
+  // usamos al guardar listas de reproduccion para poder reabrirlas despues
+  // sin tener que volver a seleccionar nada.
+  window.__lastPickedUris = window.__lastPickedUris || {};
+  window.__onNativeFilesPicked = function(list){
+    (list || []).forEach(function(it){
+      if (it && it.name && it.uri){ window.__lastPickedUris[it.name] = it.uri; }
+    });
+  };
+
+  // Llamado por la app nativa cuando MaPlayer se abre desde "Abrir con" (por
+  // ejemplo desde un gestor de archivos o una app de mensajería) para un
+  // archivo de audio. Reproduce ese archivo directamente por su content://
+  // URI, reemplazando la lista actual.
+  window.__openExternalAudio = function(name, uri){
+    if (!uri) return;
+    playlist = [{
+      isLocalUri: true,
+      contentUri: uri,
+      fileName: name || 'Audio externo',
+      title: null, artist: null, cover: null, file: null
+    }];
+    currentIndex = -1;
+    renderPlaylist();
+    loadTrack(0, true);
+  };
+
+
+  var AUDIO_EXT = /\.(mp3|wav|ogg|m4a|flac|aac|opus)$/i;
+
+  // Portada por defecto (sin ninguna pista cargada): nota musical de diseño
+  // propio sobre fondo negro puro, en el color de acento actual. Se sustituye
+  // así la imagen anterior para no coincidir con ningún icono ya publicado.
+  function buildDefaultCover(accent){
+    return 'data:image/svg+xml;utf8,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">' +
+      '<rect width="300" height="300" fill="#000000"/>' +
+      '<g fill="' + accent + '">' +
+      '<ellipse cx="108" cy="196" rx="26" ry="19"/>' +
+      '<ellipse cx="196" cy="176" rx="26" ry="19"/>' +
+      '</g>' +
+      '<g fill="none" stroke="' + accent + '" stroke-width="9" stroke-linecap="round">' +
+      '<line x1="132" y1="196" x2="132" y2="96"/>' +
+      '<line x1="220" y1="176" x2="220" y2="76"/>' +
+      '</g>' +
+      '<path d="M132 96 L220 76" fill="none" stroke="' + accent + '" stroke-width="14" stroke-linecap="round"/>' +
+      '<path d="M132 118 L220 98" fill="none" stroke="' + accent + '" stroke-width="10" stroke-linecap="round" opacity="0.7"/>' +
+      '</svg>'
+    );
+  }
+
+  function buildMusicCover(accent){
+    return 'data:image/svg+xml;utf8,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">' +
+      '<defs><linearGradient id="mg" x1="0" y1="0" x2="1" y2="1">' +
+      '<stop offset="0" stop-color="#141519"/><stop offset="1" stop-color="#1B1D22"/></linearGradient></defs>' +
+      '<rect width="300" height="300" fill="url(#mg)"/>' +
+      '<g fill="' + accent + '">' +
+      '<ellipse cx="108" cy="196" rx="26" ry="19"/>' +
+      '<ellipse cx="196" cy="176" rx="26" ry="19"/>' +
+      '</g>' +
+      '<g fill="none" stroke="' + accent + '" stroke-width="9" stroke-linecap="round">' +
+      '<line x1="132" y1="196" x2="132" y2="96"/>' +
+      '<line x1="220" y1="176" x2="220" y2="76"/>' +
+      '</g>' +
+      '<path d="M132 96 L220 76" fill="none" stroke="' + accent + '" stroke-width="14" stroke-linecap="round"/>' +
+      '<path d="M132 118 L220 98" fill="none" stroke="' + accent + '" stroke-width="10" stroke-linecap="round" opacity="0.7"/>' +
+      '</svg>'
+    );
+  }
+
+  function buildRadioCover(accent){
+    return 'data:image/svg+xml;utf8,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">' +
+      '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
+      '<stop offset="0" stop-color="#0f1a1f"/><stop offset="1" stop-color="#04211d"/></linearGradient></defs>' +
+      '<rect width="300" height="300" fill="url(#g)"/>' +
+      '<line x1="118" y1="82" x2="210" y2="126" stroke="' + accent + '" stroke-width="6" stroke-linecap="round"/>' +
+      '<circle cx="116" cy="80" r="9" fill="' + accent + '"/>' +
+      '<rect x="52" y="118" width="196" height="122" rx="16" fill="none" stroke="' + accent + '" stroke-width="6"/>' +
+      '<circle cx="198" cy="182" r="34" fill="none" stroke="' + accent + '" stroke-width="6"/>' +
+      '<circle cx="198" cy="182" r="10" fill="' + accent + '"/>' +
+      '<line x1="86" y1="162" x2="86" y2="214" stroke="' + accent + '" stroke-width="7" stroke-linecap="round"/>' +
+      '<line x1="106" y1="162" x2="106" y2="214" stroke="' + accent + '" stroke-width="7" stroke-linecap="round"/>' +
+      '<path d="M232 92 q24 24 0 48" fill="none" stroke="' + accent + '" stroke-width="5" stroke-linecap="round" opacity="0.85"/>' +
+      '<path d="M250 76 q40 40 0 80" fill="none" stroke="' + accent + '" stroke-width="5" stroke-linecap="round" opacity="0.55"/>' +
+      '</svg>'
+    );
+  }
+
+  var filesInput = document.getElementById('filesInput');
+  var folderInput = document.getElementById('folderInput');
+
+  // Búsqueda de la carátula/logo real de la emisora, usando el directorio
+  // público y gratuito Radio-Browser (no hace falta clave API). Los flujos de
+  // radio no traen metadatos ID3 como los archivos locales, así que esto es
+  // lo más parecido posible: buscamos por nombre de emisora y, si aparece en
+  // el directorio, usamos su logo oficial. Si no se encuentra, se queda con
+  // el icono genérico de radio de siempre. El resultado se guarda en caché
+  // (por nombre) para no repetir la búsqueda cada vez que suena.
+  var STATION_LOGO_CACHE_KEY = 'macroamd_station_logos';
+  var stationLogoCache = {};
+  (function loadStationLogoCache(){
+    try {
+      var raw = window.localStorage.getItem(STATION_LOGO_CACHE_KEY);
+      stationLogoCache = raw ? JSON.parse(raw) : {};
+    } catch(_){ stationLogoCache = {}; }
+  })();
+  function persistStationLogoCache(){
+    try { window.localStorage.setItem(STATION_LOGO_CACHE_KEY, JSON.stringify(stationLogoCache)); } catch(_){}
+  }
+
+  function fetchStationLogo(stationName, callback){
+    var key = (stationName || '').trim().toLowerCase();
+    if (!key){ callback(null); return; }
+    if (Object.prototype.hasOwnProperty.call(stationLogoCache, key)){
+      callback(stationLogoCache[key] || null);
+      return;
+    }
+    var url = 'https://de1.api.radio-browser.info/json/stations/search?name='
+      + encodeURIComponent(stationName) + '&limit=1&hidebroken=true&order=votes&reverse=true';
+    fetch(url).then(function(res){ return res.json(); }).then(function(list){
+      var logo = (list && list.length && list[0].favicon) ? list[0].favicon : null;
+      stationLogoCache[key] = logo;
+      persistStationLogoCache();
+      callback(logo);
+    }).catch(function(){
+      callback(null); // sin conexión, CORS, etc.: nos quedamos con el icono genérico
+    });
+  }
+  var playlistEl = document.getElementById('playlistEl');
+  var audioEl = document.getElementById('localAudio');
+
+  // Muchos "flujos de TV" de listas IPTV son HLS (.m3u8), que ni Chromium
+  // (WebView de Android, Electron) ni la mayoría de navegadores saben
+  // reproducir de forma nativa con un simple <video src="...m3u8"> — solo
+  // Safari lo hace de fábrica. hls.js "traduce" el manifiesto HLS a algo que
+  // el elemento sí entiende (Media Source Extensions). Si la URL no parece
+  // HLS, se usa el <video src> normal de toda la vida.
+  var hlsInstance = null;
+  var lastMediaUrl = null;
+  var lastMediaTriedHls = false;
+
+  function destroyHls(){
+    if (hlsInstance){
+      try { hlsInstance.destroy(); } catch(e){}
+      hlsInstance = null;
+    }
+  }
+
+  function looksLikeHls(url){
+    return /\.m3u8(\?|#|$)/i.test(url || '');
+  }
+
+  function setMediaSource(url, forceHls){
+    destroyHls();
+    lastMediaUrl = url;
+    lastMediaTriedHls = false;
+
+    var useHls = forceHls || looksLikeHls(url);
+    if (useHls && window.Hls && window.Hls.isSupported()){
+      lastMediaTriedHls = true;
+      hlsInstance = new window.Hls();
+      hlsInstance.on(window.Hls.Events.ERROR, function(event, data){
+        if (data && data.fatal){
+          console.error('hls.js error fatal:', data.type, data.details);
+        }
+      });
+      hlsInstance.loadSource(url);
+      hlsInstance.attachMedia(audioEl);
+    } else {
+      audioEl.src = url;
+    }
+  }
+  audioEl.crossOrigin = 'anonymous';
+  var npTitle = document.getElementById('npTitle');
+  var npArtist = document.getElementById('npArtist');
+  var coverFrame = document.getElementById('coverFrame');
+  var videoFrame = document.getElementById('videoFrame');
+  var fullscreenBtn = document.getElementById('fullscreenBtn');
+  var vizBadge = document.getElementById('vizModeBadge');
+
+  // Devuelve la extensión del archivo en mayúsculas (MP3, OGG, WAV, FLAC...)
+  function fileExtLabel(name){
+    var m = /\.([a-zA-Z0-9]+)$/.exec(name || '');
+    return m ? m[1].toUpperCase() : 'AUDIO';
+  }
+  var btnPlay = document.getElementById('btnPlay');
+  var playIcon = document.getElementById('playIcon');
+  var btnPrev = document.getElementById('btnPrev');
+  var btnNext = document.getElementById('btnNext');
+  var seek = document.getElementById('seek');
+  var curTime = document.getElementById('curTime');
+  var durTime = document.getElementById('durTime');
+  var playlist = [];
+  var currentIndex = -1;
+  var loopMode = 'cycle'; // 'cycle' | 'once'
+  var audioCtx, analyser, sourceNode, freqData, timeData;
+  var eqLow, eqMid, eqHigh;
+  var usingRealAudio = false;
+  var silenceFrames = 0;
+
+  // Cartelito breve (toast) para confirmar qué función se acaba de activar,
+  // útil ahora que estos botones muestran solo un icono.
+  var toastEl = document.getElementById('toast');
+  var toastTimer = null;
+  function showToast(msg){
+    if (!toastEl) return;
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastEl.classList.remove('show'); }, 1400);
+  }
+
+  var loopToggle = document.getElementById('loopToggle');
+  function updateLoopBtn(){
+    if (loopMode === 'cycle'){
+      loopToggle.textContent = '↻';
+      loopToggle.title = 'Cíclica';
+      loopToggle.className = 'loop-btn cycle';
+    } else {
+      loopToggle.textContent = '→';
+      loopToggle.title = 'Una vez';
+      loopToggle.className = 'loop-btn once';
+    }
+  }
+  loopToggle.addEventListener('click', function(){
+    loopMode = (loopMode === 'cycle') ? 'once' : 'cycle';
+    updateLoopBtn();
+    showToast(loopMode === 'cycle' ? 'Reproducción cíclica' : 'Reproducir una vez');
+  });
+  updateLoopBtn();
+
+  // Velocidad de reproducción
+  var speeds = [0.5, 1, 1.5, 2];
+  var speedIdx = 1;
+  var speedToggle = document.getElementById('speedToggle');
+  function applySpeed(){
+    var rate = speeds[speedIdx];
+    audioEl.playbackRate = rate;
+    speedToggle.textContent = (rate % 1 === 0 ? rate : rate) + '×';
+    speedToggle.className = 'loop-btn speed' + (rate !== 1 ? ' active' : '');
+  }
+  speedToggle.addEventListener('click', function(){
+    speedIdx = (speedIdx + 1) % speeds.length;
+    applySpeed();
+    showToast('Velocidad ' + speeds[speedIdx] + '×');
+  });
+  applySpeed();
+
+  // Modo aleatorio
+  var shuffle = false;
+  var shuffleToggle = document.getElementById('shuffleToggle');
+  var SHUFFLE_ICON = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6H8"/><path d="M11 3L8 6l3 3"/><path d="M4 18h12"/><path d="M13 15l3 3-3 3"/></svg>';
+  function updateShuffleBtn(){
+    shuffleToggle.innerHTML = SHUFFLE_ICON;
+    if (shuffle){
+      shuffleToggle.title = 'Azar (orden aleatorio)';
+      shuffleToggle.className = 'loop-btn shuffle-on';
+    } else {
+      shuffleToggle.title = 'Orden (secuencial)';
+      shuffleToggle.className = 'loop-btn shuffle-off';
+    }
+  }
+  shuffleToggle.addEventListener('click', function(){
+    shuffle = !shuffle;
+    updateShuffleBtn();
+    showToast(shuffle ? 'Orden al azar' : 'Orden secuencial');
+  });
+  updateShuffleBtn();
+
+  // Eliminar silencio final (fusionar pistas)
+  var trimSilence = false;
+  var silenceToggle = document.getElementById('silenceToggle');
+  var SILENCE_ICON = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h6l4 4-4 4H3"/><path d="M21 8h-6l-4 4 4 4h6"/></svg>';
+  function updateSilenceBtn(){
+    silenceToggle.innerHTML = SILENCE_ICON;
+    if (trimSilence){
+      silenceToggle.title = 'Fusionar (elimina el silencio final)';
+      silenceToggle.className = 'loop-btn silence-on';
+    } else {
+      silenceToggle.title = 'Silencio (mantiene el silencio final)';
+      silenceToggle.className = 'loop-btn silence-off';
+    }
+  }
+  silenceToggle.addEventListener('click', function(){
+    trimSilence = !trimSilence;
+    updateSilenceBtn();
+    showToast(trimSilence ? 'Fusionar pistas activado' : 'Silencio final activado');
+  });
+  updateSilenceBtn();
+
+  function nextIndex(){
+    if (playlist.length <= 1) return currentIndex;
+    if (shuffle){
+      var r;
+      do { r = Math.floor(Math.random() * playlist.length); }
+      while (r === currentIndex && playlist.length > 1);
+      return r;
+    }
+    return currentIndex + 1;
+  }
+
+  function isAudioFile(f){
+    return (f.type && f.type.indexOf('audio') === 0) || AUDIO_EXT.test(f.name);
+  }
+
+  function fmtTime(sec){
+    if (!isFinite(sec)) return '0:00';
+    var m = Math.floor(sec/60), s = Math.floor(sec%60);
+    return m + ':' + (s<10?'0':'') + s;
+  }
+
+  var coverMode = 'default';  // 'art' | 'music' | 'radio' | 'default'
+  var coverArt = null;
+  function accentColor(){
+    var c = getComputedStyle(document.documentElement).getPropertyValue('--led-green').trim();
+    return c || '#3CFF7A';
+  }
+  function renderCover(){
+    var src;
+    if (coverMode === 'art' && coverArt) src = coverArt;
+    else if (coverMode === 'music') src = buildMusicCover(accentColor());
+    else if (coverMode === 'radio') src = buildRadioCover(accentColor());
+    else src = buildDefaultCover(accentColor());
+    coverFrame.innerHTML = '<img src="' + src + '" alt="carátula">';
+    if (typeof coverModal !== 'undefined' && coverModal && coverModal.classList.contains('open')){
+      syncCoverModal();
+    }
+  }
+  function setCover(artUrl, fallbackMode){
+    if (artUrl){ coverMode = 'art'; coverArt = artUrl; }
+    else { coverMode = fallbackMode || 'default'; coverArt = null; }
+    renderCover();
+  }
+  setCover(null);
+
+  function scrollActiveToTop(){
+    var activeRow = playlistEl.querySelector('.track-row.active');
+    if (!activeRow) return;
+    var offset = activeRow.getBoundingClientRect().top - playlistEl.getBoundingClientRect().top + playlistEl.scrollTop;
+    playlistEl.scrollTo({ top: offset, behavior: 'smooth' });
+  }
+
+  function renderPlaylist(){
+    if (!playlist.length){
+      playlistEl.innerHTML = '<div class="empty-hint">Tu lista de reproducción aparecerá aquí</div>';
+      return;
+    }
+    playlistEl.innerHTML = '';
+    playlist.forEach(function(item, i){
+      var row = document.createElement('div');
+      row.className = 'track-row' + (i===currentIndex ? ' active' : '') + (item.unsupported ? ' unsupported' : '') + (item.pendingFile ? ' pending' : '');
+
+      var idx = document.createElement('span');
+      idx.className = 'track-index';
+      idx.textContent = i+1;
+
+      var name = document.createElement('span');
+      name.className = 'track-name';
+      var trackLabel = item.pendingFile ? item.fileName :
+        (item.title || (item.file ? item.file.name : (item.fileName || 'Radio')));
+      if (item.isRadio) trackLabel = '📻 ' + trackLabel;
+      if (item.unsupported) trackLabel += ' · No compatible';
+      if (item.pendingFile) trackLabel += ' · Elige la carpeta para cargarlo';
+      name.textContent = trackLabel;
+      name.dataset.label = trackLabel;
+      name.dataset.active = (i===currentIndex ? '1' : '0');
+
+      var remove = document.createElement('span');
+      remove.className = 'track-remove';
+      remove.textContent = '✕';
+      remove.title = 'Quitar de la lista';
+      remove.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        removeTrack(i);
+      });
+
+      row.appendChild(idx);
+      row.appendChild(name);
+
+      // Botón de guardar solo para emisoras de radio
+      if (item.isRadio){
+        var save = document.createElement('span');
+        var already = isSaved(item.url);
+        save.className = 'track-save' + (already ? ' saved' : '');
+        save.textContent = already ? '★' : '☆';
+        save.title = already ? 'Guardada' : 'Guardar emisora';
+        save.addEventListener('click', function(ev){
+          ev.stopPropagation();
+          if (isSaved(item.url)){
+            deleteSaved(item.url);
+          } else {
+            saveStation(item.title || nameFromUrl(item.url), item.url);
+          }
+        });
+        row.appendChild(save);
+      }
+
+      row.appendChild(remove);
+      row.addEventListener('click', function(){ loadTrack(i, true); });
+      playlistEl.appendChild(row);
+    });
+
+    // Activar marquesina en la fila activa si el texto se desborda (tras el layout)
+    scheduleMarquee();
+  }
+
+  function marqueeElement(el, label){
+    if (!el) return;
+    el.classList.remove('scrolling');
+    el.textContent = label;
+
+    var avail = el.clientWidth;
+
+    var probe = document.createElement('span');
+    probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;left:-9999px;top:-9999px;';
+    probe.style.font = getComputedStyle(el).font;
+    probe.textContent = label;
+    document.body.appendChild(probe);
+    var textW = probe.getBoundingClientRect().width;
+    document.body.removeChild(probe);
+
+    if (avail > 0 && textW > avail + 2){
+      var safe = label.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      el.classList.add('scrolling');
+      el.innerHTML = '<span>' + safe + '</span>';
+    }
+  }
+
+  function applyMarquee(){
+    // Título del reproductor
+    if (npTitle.dataset.label){
+      marqueeElement(npTitle, npTitle.dataset.label);
+    }
+    // Fila activa del playlist
+    var activeRow = playlistEl.querySelector('.track-row.active');
+    if (activeRow){
+      var activeName = activeRow.querySelector('.track-name');
+      if (activeName){
+        marqueeElement(activeName, activeName.dataset.label || activeName.textContent);
+      }
+    }
+  }
+
+  function setNowPlayingTitle(text){
+    npTitle.dataset.label = text;
+    npTitle.textContent = text;
+    scheduleMarquee();
+    if (typeof coverModal !== 'undefined' && coverModal && coverModal.classList.contains('open')){
+      syncCoverModal();
+    }
+  }
+
+  function scheduleMarquee(){
+    // Varios intentos para cubrir el layout inicial y la carga de fuentes
+    requestAnimationFrame(applyMarquee);
+    setTimeout(applyMarquee, 120);
+    setTimeout(applyMarquee, 400);
+    if (document.fonts && document.fonts.ready){
+      document.fonts.ready.then(applyMarquee);
+    }
+  }
+
+  window.addEventListener('resize', applyMarquee);
+
+  function resetToEmpty(){
+    currentIndex = -1;
+    destroyHls();
+    audioEl.pause();
+    audioEl.removeAttribute('src');
+    videoFrame.style.display = 'none';
+    coverFrame.style.display = '';
+    setNowPlayingTitle('Ninguna pista cargada');
+    npArtist.textContent = 'Elige archivos o una carpeta para empezar';
+    setCover(null);
+    usingRealAudio = false;
+    vizBadge.textContent = 'ESPERA';
+    vizBadge.className = 'viz-mode idle';
+    renderPlaylist();
+    syncNativeNowPlaying();
+  }
+
+  function removeTrack(i){
+    var wasCurrent = (i === currentIndex);
+    playlist.splice(i, 1);
+
+    if (!playlist.length){
+      resetToEmpty();
+      return;
+    }
+
+    if (wasCurrent){
+      var nextIndex = i >= playlist.length ? playlist.length - 1 : i;
+      loadTrack(nextIndex, true);
+    } else if (i < currentIndex){
+      currentIndex -= 1;
+      renderPlaylist();
+    } else {
+      renderPlaylist();
+    }
+  }
+
+  var clearPlaylistBtn = document.getElementById('clearPlaylist');
+  clearPlaylistBtn.addEventListener('click', function(){
+    if (!playlist.length) return;
+    playlist = [];
+    resetToEmpty();
+    showToast('Vaciar lista de reproducción');
+  });
+
+  // Cuando se abre el selector de carpeta para completar una lista guardada
+  // (huecos pendientes), solo queremos rellenar esos huecos por nombre, sin
+  // añadir de propina el resto de archivos de la carpeta como pistas nuevas.
+  // Esta bandera se activa justo antes de ese caso concreto y se consume
+  // (vuelve a false) en el siguiente handleFiles().
+  var restrictNextFolderPickToMatching = false;
+
+  function handleFiles(fileList){
+    var files = Array.prototype.filter.call(fileList, isAudioFile);
+    if (!files.length) return;
+
+    var onlyMatching = restrictNextFolderPickToMatching;
+    restrictNextFolderPickToMatching = false;
+
+    var wasEmpty = playlist.length === 0;
+    var matchedAny = false;
+    var remainingFiles = [];
+
+    // Antes de añadir como pistas nuevas, intentamos rellenar huecos
+    // pendientes (de una lista de reproducción guardada) que coincidan por
+    // nombre de archivo.
+    files.forEach(function(f){
+      var idx = playlist.findIndex(function(it){ return it.pendingFile && it.fileName === f.name; });
+      if (idx !== -1){
+        playlist[idx] = { file:f, title:null, artist:null, cover:null };
+        matchedAny = true;
+      } else if (!onlyMatching){
+        remainingFiles.push(f);
+      }
+    });
+
+    remainingFiles.forEach(function(f){
+      playlist.push({ file:f, title:null, artist:null, cover:null });
+    });
+
+    renderPlaylist();
+
+    if (wasEmpty){
+      loadTrack(0, true);
+    } else if (matchedAny && currentIndex === -1){
+      var firstPlayable = playlist.findIndex(function(it){ return !it.pendingFile; });
+      if (firstPlayable !== -1) loadTrack(firstPlayable, true);
+    }
+  }
+
+  filesInput.addEventListener('change', function(e){ handleFiles(e.target.files); e.target.value=''; });
+  folderInput.addEventListener('change', function(e){ handleFiles(e.target.files); e.target.value=''; });
+
+  // Radio: añadir emisora por URL mediante un modal
+  var radioBtn = document.getElementById('radioBtn');
+  var radioModal = document.getElementById('radioModal');
+  var radioName = document.getElementById('radioName');
+  var radioUrl = document.getElementById('radioUrl');
+  var radioError = document.getElementById('radioError');
+  var radioCancel = document.getElementById('radioCancel');
+  var radioAdd = document.getElementById('radioAdd');
+  var radioSavedList = document.getElementById('radioSavedList');
+
+  // Persistencia (con respaldo en memoria si localStorage no está disponible)
+  var SAVED_KEY = 'macroamd_radio_saved';
+  var savedStations = [];
+  function loadSaved(){
+    try{
+      var raw = window.localStorage.getItem(SAVED_KEY);
+      savedStations = raw ? JSON.parse(raw) : [];
+    }catch(_){ savedStations = savedStations || []; }
+  }
+  function persistSaved(){
+    try{ window.localStorage.setItem(SAVED_KEY, JSON.stringify(savedStations)); }catch(_){}
+  }
+  function isSaved(url){
+    return savedStations.some(function(s){ return s.url === url; });
+  }
+  function saveStation(name, url){
+    if (isSaved(url)) return;
+    savedStations.push({ name:name, url:url });
+    persistSaved();
+    renderSaved();
+    renderPlaylist();
+  }
+  function deleteSaved(url){
+    savedStations = savedStations.filter(function(s){ return s.url !== url; });
+    persistSaved();
+    renderSaved();
+    renderPlaylist();
+  }
+  loadSaved();
+
+  // Exportar / importar la lista de emisoras guardadas, para compartirla con
+  // otro dispositivo (Telegram, WhatsApp, Bluetooth...) o guardarla como
+  // archivo. En la app Android usamos el puente nativo (abre el selector de
+  // "compartir" del sistema); en el navegador/PWA usamos la descarga y
+  // selección de archivo estándar de la web.
+  var stationsExportBtn = document.getElementById('stationsExportBtn');
+  var stationsImportBtn = document.getElementById('stationsImportBtn');
+  var stationsImportInput = document.getElementById('stationsImportInput');
+
+  // Convierte las emisoras guardadas al formato M3U estándar (más portable
+  // que nuestro JSON propio: lo reconoce cualquier reproductor, no solo
+  // MaPlayer).
+  function buildM3U(stations){
+    var lines = ['#EXTM3U'];
+    stations.forEach(function(s){
+      var name = (s.name || s.url || '').replace(/[\r\n]/g, ' ');
+      lines.push('#EXTINF:-1,' + name);
+      lines.push(s.url);
+    });
+    return lines.join('\n') + '\n';
+  }
+
+  // Formato .pls estándar (Winamp/Shoutcast), la otra gran variante de lista
+  // de reproducción además de M3U:
+  //   [playlist]
+  //   NumberOfEntries=2
+  //   File1=http://flujo1
+  //   Title1=Emisora 1
+  //   Length1=-1
+  //   File2=http://flujo2
+  //   Title2=Emisora 2
+  //   Length2=-1
+  //   Version=2
+  function buildPLS(stations){
+    var lines = ['[playlist]', 'NumberOfEntries=' + stations.length];
+    stations.forEach(function(s, i){
+      var n = i + 1;
+      var name = (s.name || s.url || '').replace(/[\r\n]/g, ' ');
+      lines.push('File' + n + '=' + s.url);
+      lines.push('Title' + n + '=' + name);
+      lines.push('Length' + n + '=-1');
+    });
+    lines.push('Version=2');
+    return lines.join('\n') + '\n';
+  }
+
+  function parsePLS(text){
+    var files = {}, titles = {};
+    text.split(/\r?\n/).forEach(function(line){
+      line = line.trim();
+      var m = /^File(\d+)\s*=\s*(.+)$/i.exec(line);
+      if (m){ files[m[1]] = m[2].trim(); return; }
+      m = /^Title(\d+)\s*=\s*(.+)$/i.exec(line);
+      if (m){ titles[m[1]] = m[2].trim(); return; }
+    });
+    var stations = [];
+    Object.keys(files).forEach(function(idx){
+      stations.push({ name: titles[idx] || files[idx], url: files[idx] });
+    });
+    return stations;
+  }
+
+  function shareOrDownload(text, mime, filename, exportFnName){
+    if (window.AndroidPlayback && typeof window.AndroidPlayback[exportFnName] === 'function'){
+      window.AndroidPlayback[exportFnName](text);
+      return true;
+    }
+    try {
+      var blob = new Blob([text], { type: mime });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+      return true;
+    } catch(e){
+      return false;
+    }
+  }
+
+  function exportStations(){
+    if (!savedStations.length){
+      showToast('No hay emisoras guardadas para exportar');
+      return;
+    }
+    var ok = shareOrDownload(
+      buildM3U(savedStations), 'audio/x-mpegurl', 'macroamd_emisoras.m3u', 'exportStations'
+    );
+    showToast(ok ? 'Emisoras exportadas (M3U)' : 'No se pudo exportar');
+  }
+
+  function exportStationsPls(){
+    if (!savedStations.length){
+      showToast('No hay emisoras guardadas para exportar');
+      return;
+    }
+    var ok = shareOrDownload(
+      buildPLS(savedStations), 'audio/x-scpls', 'macroamd_emisoras.pls', 'exportStationsPls'
+    );
+    showToast(ok ? 'Emisoras exportadas (PLS)' : 'No se pudo exportar');
+  }
+
+  // Interpreta un archivo M3U/M3U8 estándar:
+  //   #EXTM3U
+  //   #EXTINF:-1,Nombre de la emisora
+  //   http://flujo.ejemplo.com/stream
+  // También admite listas "planas" sin cabecera ni #EXTINF (una URL por
+  // línea), usando la propia URL como nombre en ese caso.
+  function parseM3U(text){
+    var lines = text.split(/\r?\n/);
+    var stations = [];
+    var pendingName = null;
+    lines.forEach(function(line){
+      line = line.trim();
+      if (!line) return;
+      if (/^#EXTINF/i.test(line)){
+        var commaIdx = line.indexOf(',');
+        pendingName = commaIdx !== -1 ? line.slice(commaIdx + 1).trim() : null;
+        return;
+      }
+      if (line.charAt(0) === '#') return; // otras líneas de metadatos (#EXTM3U, #EXTGRP...), se ignoran
+      stations.push({ name: pendingName || line, url: line });
+      pendingName = null;
+    });
+    return stations;
+  }
+
+  function mergeImportedStations(list){
+    var added = 0;
+    list.forEach(function(s){
+      if (s && s.url && !isSaved(s.url)){
+        savedStations.push({ name: s.name || s.url, url: s.url });
+        added++;
+      }
+    });
+    persistSaved();
+    renderSaved();
+    renderPlaylist();
+    showToast(added > 0 ? ('Importadas ' + added + ' emisora(s)') : 'No había emisoras nuevas que importar');
+  }
+
+  // Detecta y separa el contenido de un archivo de lista (PLS, M3U/M3U8 o
+  // nuestro JSON propio) en una lista plana de {name, url}. Se usa tanto para
+  // importar emisoras como para abrir listas de reproducción completas.
+  function parseAnyPlaylistFile(text){
+    var trimmed = (text || '').trim();
+    if (!trimmed) return null;
+
+    if (/^\[playlist\]/im.test(trimmed) || /^File1\s*=/im.test(trimmed)){
+      return parsePLS(trimmed);
+    }
+
+    var looksLikeM3U = /^#EXTM3U/i.test(trimmed) ||
+      (trimmed.charAt(0) !== '{' && trimmed.charAt(0) !== '[' && /^https?:\/\//im.test(trimmed));
+    if (looksLikeM3U){
+      return parseM3U(trimmed);
+    }
+
+    try {
+      var data = JSON.parse(trimmed);
+      var list = Array.isArray(data) ? data : (Array.isArray(data.stations) ? data.stations : null);
+      return list;
+    } catch(e){
+      return null;
+    }
+  }
+
+  function applyImportedJson(text){
+    var list = parseAnyPlaylistFile(text);
+    if (list === null){
+      showToast((text || '').trim() ? 'No se pudo leer el archivo (¿es un JSON, M3U o PLS válido?)' : 'El archivo está vacío');
+      return;
+    }
+    if (!list.length){ showToast('El archivo no contiene ninguna URL'); return; }
+    mergeImportedStations(list);
+  }
+
+  // Llamado por la app Android tras leer el archivo elegido para importar.
+  window.__onStationsImported = function(text){ applyImportedJson(text); };
+
+  function importStations(){
+    if (window.AndroidPlayback && typeof window.AndroidPlayback.importStations === 'function'){
+      window.AndroidPlayback.importStations();
+      return;
+    }
+    // Navegador/PWA: selector de archivo estándar
+    stationsImportInput.value = '';
+    stationsImportInput.click();
+  }
+
+  stationsImportInput.addEventListener('change', function(e){
+    var file = e.target.files && e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){ applyImportedJson(String(reader.result || '')); };
+    reader.onerror = function(){ showToast('No se pudo leer el archivo'); };
+    reader.readAsText(file);
+  });
+
+  stationsExportBtn.addEventListener('click', exportStations);
+  stationsImportBtn.addEventListener('click', importStations);
+  var stationsExportPlsBtn = document.getElementById('stationsExportPlsBtn');
+  stationsExportPlsBtn.addEventListener('click', exportStationsPls);
+
+  var stationsClearBtn = document.getElementById('stationsClearBtn');
+  stationsClearBtn.addEventListener('click', function(){
+    if (!savedStations.length){
+      showToast('No hay emisoras guardadas');
+      return;
+    }
+    savedStations = [];
+    persistSaved();
+    renderSaved();
+    showToast('Emisoras guardadas vaciadas');
+  });
+
+  function renderSaved(){
+    if (!savedStations.length){
+      radioSavedList.innerHTML = '<div class="radio-saved-empty">No hay emisoras guardadas todavía</div>';
+      return;
+    }
+    radioSavedList.innerHTML = '';
+    savedStations.forEach(function(s){
+      var row = document.createElement('div');
+      row.className = 'radio-saved-row';
+
+      var icon = document.createElement('span');
+      icon.className = 'radio-saved-icon';
+      icon.textContent = '📻';
+
+      var name = document.createElement('span');
+      name.className = 'radio-saved-name';
+      name.textContent = s.name;
+
+      var del = document.createElement('span');
+      del.className = 'radio-saved-del';
+      del.textContent = '✕';
+      del.title = 'Eliminar emisora guardada';
+      del.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        deleteSaved(s.url);
+      });
+
+      // Al hacer clic en la fila: añadir al playlist y reproducir
+      row.addEventListener('click', function(){
+        var wasEmpty = playlist.length === 0;
+        playlist.push({ isRadio:true, url:s.url, title:s.name, artist:'Radio', cover:null, file:null });
+        renderPlaylist();
+        closeRadioModal();
+        loadTrack(playlist.length - 1, true);
+      });
+
+      row.appendChild(icon);
+      row.appendChild(name);
+      row.appendChild(del);
+      radioSavedList.appendChild(row);
+    });
+  }
+  renderSaved();
+
+  function openRadioModal(){
+    radioError.textContent = '';
+    radioName.value = '';
+    radioUrl.value = '';
+    renderSaved();
+    radioModal.classList.add('open');
+  }
+  function closeRadioModal(){ radioModal.classList.remove('open'); }
+
+  radioBtn.addEventListener('click', openRadioModal);
+  radioCancel.addEventListener('click', closeRadioModal);
+  radioModal.addEventListener('click', function(e){
+    if (e.target === radioModal) closeRadioModal();
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && radioModal.classList.contains('open')) closeRadioModal();
+  });
+
+  function nameFromUrl(url){
+    try{
+      var u = new URL(url);
+      var last = u.pathname.split('/').filter(Boolean).pop();
+      return last ? last.replace(/\.[^/.]+$/, '') : u.hostname;
+    }catch(_){ return url; }
+  }
+
+  function addRadioStation(){
+    var url = radioUrl.value.trim();
+    if (!/^https?:\/\/\S+$/i.test(url)){
+      radioError.textContent = 'Introduce una URL válida (http:// o https://).';
+      return;
+    }
+    var name = radioName.value.trim() || nameFromUrl(url);
+    // Guardar automáticamente al añadir desde el modal
+    saveStation(name, url);
+    playlist.push({ isRadio:true, url:url, title:name, artist:'Radio', cover:null, file:null });
+    renderPlaylist();
+    closeRadioModal();
+    loadTrack(playlist.length - 1, true);
+  }
+
+  radioAdd.addEventListener('click', addRadioStation);
+  radioUrl.addEventListener('keydown', function(e){ if (e.key === 'Enter') addRadioStation(); });
+  radioName.addEventListener('keydown', function(e){ if (e.key === 'Enter') addRadioStation(); });
+
+  // Listas de reproducción: guardar / abrir / eliminar
+  var playlistBtn = document.getElementById('playlistBtn');
+  var playlistModal = document.getElementById('playlistModal');
+  var playlistSaveName = document.getElementById('playlistSaveName');
+  var playlistError = document.getElementById('playlistError');
+  var playlistCancel = document.getElementById('playlistCancel');
+  var playlistSave = document.getElementById('playlistSave');
+  var playlistSavedList = document.getElementById('playlistSavedList');
+
+  var PLAYLISTS_KEY = 'macroamd_playlists_saved';
+  var savedPlaylists = [];
+  function loadSavedPlaylists(){
+    try{
+      var raw = window.localStorage.getItem(PLAYLISTS_KEY);
+      savedPlaylists = raw ? JSON.parse(raw) : [];
+    }catch(_){ savedPlaylists = savedPlaylists || []; }
+  }
+  function persistSavedPlaylists(){
+    try{ window.localStorage.setItem(PLAYLISTS_KEY, JSON.stringify(savedPlaylists)); }catch(_){}
+  }
+  loadSavedPlaylists();
+
+  // Guardamos lo mínimo necesario: las emisoras de radio se guardan enteras
+  // (tienen URL, se pueden recuperar al 100%); los archivos locales solo se
+  // recuerdan por nombre, porque el navegador no permite conservar acceso a
+  // ellos entre sesiones.
+  function snapshotCurrentPlaylist(){
+    return playlist.map(function(it){
+      if (it.isRadio){
+        return { isRadio:true, url:it.url, title:it.title, artist:it.artist };
+      }
+      var fileName = it.pendingFile ? it.fileName : (it.file ? it.file.name : '');
+      var contentUri = it.contentUri || (it.isLocalUri ? it.contentUri : null) ||
+        (fileName ? window.__lastPickedUris[fileName] : null) || null;
+      return { isRadio:false, fileName: fileName, contentUri: contentUri };
+    });
+  }
+
+  function renderSavedPlaylists(){
+    if (!savedPlaylists.length){
+      playlistSavedList.innerHTML = '<div class="radio-saved-empty">No hay listas guardadas todavía</div>';
+      return;
+    }
+    playlistSavedList.innerHTML = '';
+    savedPlaylists.forEach(function(pl, plIndex){
+      // Si la lista tiene archivos locales sin URI recordada, necesitará que
+      // el usuario elija la carpeta. En Android, un <input type="file"> solo
+      // se puede abrir con un toque real (o con un <label for="..."> nativo);
+      // un simple ".click()" desde JS no cuenta como toque de confianza y el
+      // WebView lo ignora. Por eso, en ese caso, la propia fila ES la
+      // etiqueta asociada al selector de carpeta: el mismo toque que abre la
+      // lista abre también, de forma nativa, el selector.
+      var needsFolder = pl.tracks.some(function(t){ return !t.isRadio; });
+
+      var row = document.createElement(needsFolder ? 'label' : 'div');
+      row.className = 'radio-saved-row';
+      if (needsFolder) row.setAttribute('for', 'folderInput');
+
+      var icon = document.createElement('span');
+      icon.className = 'radio-saved-icon';
+      icon.textContent = '🎵';
+
+      var name = document.createElement('span');
+      name.className = 'radio-saved-name';
+      name.textContent = pl.name + ' (' + pl.tracks.length + ')' + (needsFolder ? ' · elige carpeta' : '');
+
+      var del = document.createElement('span');
+      del.className = 'radio-saved-del';
+      del.textContent = '✕';
+      del.title = 'Eliminar lista guardada';
+      del.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        ev.preventDefault(); // no debe disparar el selector de carpeta de la fila
+        savedPlaylists.splice(plIndex, 1);
+        persistSavedPlaylists();
+        renderSavedPlaylists();
+      });
+
+      row.addEventListener('click', function(){
+        // Si esta fila es un <label for="folderInput"> (needsFolder), el
+        // navegador tiene que poder completar su propia activación nativa
+        // del selector de carpeta con este mismo toque. Si aquí mismo, de
+        // forma síncrona, ocultamos el modal y tocamos el DOM, interferimos
+        // con esa activación. Por eso difiere nuestra lógica al siguiente
+        // tick, dejando que el toque "de confianza" del usuario complete su
+        // curso nativo primero.
+        setTimeout(function(){ openSavedPlaylist(pl); }, 0);
+      });
+
+      row.appendChild(icon);
+      row.appendChild(name);
+      row.appendChild(del);
+      playlistSavedList.appendChild(row);
+    });
+  }
+  renderSavedPlaylists();
+
+  function openSavedPlaylist(pl){
+    playlist = pl.tracks.map(function(t){
+      if (t.isRadio){
+        return { isRadio:true, url:t.url, title:t.title, artist:t.artist || 'Radio', cover:null, file:null };
+      }
+      // La reproducción directa por content:// URI guardada no resultó
+      // fiable en el WebView (fallaba pista a pista). Siempre pedimos la
+      // carpeta y emparejamos por nombre, que es el mecanismo probado.
+      return { pendingFile:true, fileName:t.fileName, title:null, artist:null, cover:null, file:null };
+    });
+    currentIndex = -1;
+    closePlaylistModal();
+
+    // Si esta lista tiene archivos locales pendientes, el próximo selector
+    // de carpeta que se abra (el propio <label> de la fila) debe limitarse a
+    // rellenar esos huecos por nombre, sin añadir el resto de la carpeta.
+    if (playlist.some(function(it){ return it.pendingFile; })){
+      restrictNextFolderPickToMatching = true;
+    }
+
+    var firstPlayable = playlist.findIndex(function(it){ return !it.pendingFile; });
+
+    if (firstPlayable !== -1){
+      loadTrack(firstPlayable, true);
+    } else if (playlist.length){
+      renderPlaylist();
+      setNowPlayingTitle(playlist[0].fileName || 'Pendiente');
+      npArtist.textContent = 'Elige la carpeta que contiene estos archivos';
+    } else {
+      resetToEmpty();
+    }
+  }
+
+  // Modal "Acerca de": doble clic en el área del visualizador
+  var aboutModal = document.getElementById('aboutModal');
+  var aboutClose = document.getElementById('aboutClose');
+  var vizDisplay = document.getElementById('vizDisplay');
+
+  function openAboutModal(){ aboutModal.classList.add('open'); }
+  function closeAboutModal(){ aboutModal.classList.remove('open'); }
+
+  vizDisplay.addEventListener('dblclick', openAboutModal);
+  aboutClose.addEventListener('click', closeAboutModal);
+  aboutModal.addEventListener('click', function(e){
+    if (e.target === aboutModal) closeAboutModal();
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && aboutModal.classList.contains('open')) closeAboutModal();
+  });
+
+  function openPlaylistModal(){
+    playlistError.textContent = '';
+    playlistSaveName.value = '';
+    renderSavedPlaylists();
+    playlistModal.classList.add('open');
+    setTimeout(function(){ playlistSaveName.focus(); }, 50);
+  }
+  function closePlaylistModal(){ playlistModal.classList.remove('open'); }
+
+  playlistBtn.addEventListener('click', function(){
+    showToast('Listas de reproducción');
+    openPlaylistModal();
+  });
+  playlistCancel.addEventListener('click', closePlaylistModal);
+  playlistModal.addEventListener('click', function(e){
+    if (e.target === playlistModal) closePlaylistModal();
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && playlistModal.classList.contains('open')) closePlaylistModal();
+  });
+
+  function saveCurrentPlaylist(){
+    if (!playlist.length){
+      playlistError.textContent = 'No hay ninguna pista cargada para guardar.';
+      return;
+    }
+    var name = playlistSaveName.value.trim();
+    if (!name){
+      playlistError.textContent = 'Ponle un nombre a la lista.';
+      return;
+    }
+    var tracks = snapshotCurrentPlaylist();
+    var existingIdx = savedPlaylists.findIndex(function(p){ return p.name === name; });
+    if (existingIdx !== -1){
+      savedPlaylists[existingIdx].tracks = tracks;
+    } else {
+      savedPlaylists.push({ name:name, tracks:tracks });
+    }
+    persistSavedPlaylists();
+    renderSavedPlaylists();
+    playlistError.textContent = '';
+    playlistSaveName.value = '';
+  }
+
+  playlistSave.addEventListener('click', saveCurrentPlaylist);
+  playlistSaveName.addEventListener('keydown', function(e){ if (e.key === 'Enter') saveCurrentPlaylist(); });
+
+  // Abrir/exportar la lista de reproducción ACTUAL (la que está sonando)
+  // como archivo .pls, independientemente de las listas guardadas de arriba.
+  var playlistImportInput = document.getElementById('playlistImportInput');
+  var playlistOpenFileBtn = document.getElementById('playlistOpenFileBtn');
+  var playlistExportFileBtn = document.getElementById('playlistExportFileBtn');
+
+  function exportPlaylistToFile(){
+    if (!playlist.length){
+      playlistError.textContent = 'No hay ninguna pista cargada para exportar.';
+      return;
+    }
+    var tracks = snapshotCurrentPlaylist();
+    var plsEntries = tracks.map(function(t){
+      if (t.isRadio) return { name: t.title || t.url, url: t.url };
+      // Los archivos locales no tienen una URL real que se pueda compartir;
+      // se guarda el nombre como referencia, igual que en las listas
+      // guardadas internamente (se reemparejan por nombre al reabrir).
+      return { name: t.fileName || 'audio', url: t.fileName || '' };
+    });
+    var ok = shareOrDownload(
+      buildPLS(plsEntries), 'audio/x-scpls', 'macroamd_playlist.pls', 'exportPlaylistPls'
+    );
+    showToast(ok ? 'Lista exportada (PLS)' : 'No se pudo exportar');
+  }
+
+  // Convierte las entradas de un archivo abierto en pistas reproducibles:
+  // las que parecen una URL real se tratan como radio; el resto, como
+  // referencias a archivos locales pendientes de reemparejar por nombre.
+  function applyImportedPlaylistFile(text){
+    var list = parseAnyPlaylistFile(text);
+    if (list === null){
+      showToast((text || '').trim() ? 'No se pudo leer el archivo (¿es un JSON, M3U o PLS válido?)' : 'El archivo está vacío');
+      return;
+    }
+    if (!list.length){ showToast('El archivo no contiene ninguna pista'); return; }
+
+    var tracks = list.map(function(entry){
+      var url = entry && entry.url ? String(entry.url) : '';
+      if (/^https?:\/\//i.test(url)){
+        return { isRadio:true, url:url, title:entry.name || url, artist:'Radio' };
+      }
+      var fileName = (url || entry.name || '').split(/[\\/]/).pop();
+      return { isRadio:false, fileName: fileName || (entry.name || 'audio') };
+    });
+
+    openSavedPlaylist({ name: 'Lista abierta', tracks: tracks });
+    showToast('Lista abierta (' + tracks.length + ' pista(s))');
+  }
+
+  // Llamado por la app Android tras leer el archivo elegido para abrir.
+  window.__onPlaylistFileImported = function(text){ applyImportedPlaylistFile(text); };
+
+  function openPlaylistFromFile(){
+    if (window.AndroidPlayback && typeof window.AndroidPlayback.importPlaylistFile === 'function'){
+      window.AndroidPlayback.importPlaylistFile();
+      return;
+    }
+    // Navegador/PWA/escritorio: selector de archivo estándar
+    playlistImportInput.value = '';
+    playlistImportInput.click();
+  }
+
+  playlistImportInput.addEventListener('change', function(e){
+    var file = e.target.files && e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){ applyImportedPlaylistFile(String(reader.result || '')); };
+    reader.onerror = function(){ showToast('No se pudo leer el archivo'); };
+    reader.readAsText(file);
+  });
+
+  playlistOpenFileBtn.addEventListener('click', openPlaylistFromFile);
+  playlistExportFileBtn.addEventListener('click', exportPlaylistToFile);
+
+  function ensureAudioGraph(){
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    sourceNode = audioCtx.createMediaElementSource(audioEl);
+
+    // Ecualizador de 3 bandas
+    eqLow = audioCtx.createBiquadFilter();
+    eqLow.type = 'lowshelf'; eqLow.frequency.value = 250;
+    eqMid = audioCtx.createBiquadFilter();
+    eqMid.type = 'peaking'; eqMid.frequency.value = 1000; eqMid.Q.value = 1;
+    eqHigh = audioCtx.createBiquadFilter();
+    eqHigh.type = 'highshelf'; eqHigh.frequency.value = 4000;
+
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 128;
+    freqData = new Uint8Array(analyser.frequencyBinCount);
+    timeData = new Uint8Array(analyser.fftSize);
+
+    // source -> low -> mid -> high -> analyser -> destino
+    sourceNode.connect(eqLow);
+    eqLow.connect(eqMid);
+    eqMid.connect(eqHigh);
+    eqHigh.connect(analyser);
+    analyser.connect(audioCtx.destination);
+
+    // Aplicar valores actuales de los deslizadores del EQ
+    if (typeof window.applyEqInit === 'function') window.applyEqInit();
+  }
+
+  // El content:// que entrega el selector nativo de Android a veces trae un
+  // MIME incorrecto o genérico (application/octet-stream) para ciertos
+  // archivos, y el <audio> los rechaza de inmediato ("no supported sources")
+  // sin ni siquiera mirar los bytes. Forzamos aquí el MIME correcto según la
+  // extensión antes de crear el blob URL.
+  var MIME_BY_EXT = {
+    '.mp3':  'audio/mpeg',
+    '.m4a':  'audio/mp4',
+    '.aac':  'audio/aac',
+    '.ogg':  'audio/ogg',
+    '.oga':  'audio/ogg',
+    '.opus': 'audio/ogg',
+    '.wav':  'audio/wav',
+    '.flac': 'audio/flac',
+    '.wma':  'audio/x-ms-wma',
+    '.weba': 'audio/webm'
+  };
+  function correctMimeFor(file){
+    var name = (file.name || '').toLowerCase();
+    for (var ext in MIME_BY_EXT){
+      if (name.endsWith(ext)) return MIME_BY_EXT[ext];
+    }
+    return file.type || 'audio/mpeg';
+  }
+  function createPlayableObjectURL(file){
+    var correctType = correctMimeFor(file);
+    if (file.type === correctType){
+      return URL.createObjectURL(file);
+    }
+    // Reconstruimos el Blob con el MIME correcto sin copiar los datos
+    // (Blob([file]) referencia los mismos bytes, es prácticamente gratis).
+    var fixedBlob = new Blob([file], { type: correctType });
+    return URL.createObjectURL(fixedBlob);
+  }
+
+  function loadTrack(i, autoplay){
+    if (i < 0) i = playlist.length - 1;
+    if (i >= playlist.length) i = 0;
+
+    // Si el hueco es un archivo local pendiente de reemparejar (de una lista
+    // guardada), no hay nada que reproducir todavía: saltamos al siguiente
+    // hueco real, salvo que absolutamente todo esté pendiente.
+    if (playlist[i] && playlist[i].pendingFile){
+      var everythingPending = playlist.every(function(it){ return it.pendingFile; });
+      if (!everythingPending){
+        var next = i;
+        for (var guard = 0; guard < playlist.length; guard++){
+          next = (next + 1) % playlist.length;
+          if (!playlist[next].pendingFile){ i = next; break; }
+        }
+      } else {
+        currentIndex = i;
+        setNowPlayingTitle(playlist[i].fileName || 'Pendiente');
+        npArtist.textContent = 'Elige la carpeta que contiene este archivo';
+        renderPlaylist();
+        return;
+      }
+    }
+
+    currentIndex = i;
+    silenceFrames = 0;
+    // Por defecto asumimos que es audio; si al cargar los metadatos resulta
+    // tener una pista de vídeo real, el listener 'loadedmetadata' lo revela.
+    videoFrame.style.display = 'none';
+    coverFrame.style.display = '';
+    var item = playlist[i];
+
+    // Emisora de radio (flujo online)
+    if (item.isRadio){
+      setNowPlayingTitle(item.title || 'Radio');
+      npArtist.textContent = '📻 ' + (item.artist || 'Emisora online');
+      setCover(item.cover, 'radio');
+      renderPlaylist();
+      scrollActiveToTop();
+
+      setMediaSource(item.url);
+      audioEl.playbackRate = 1; // los flujos no admiten cambio de velocidad
+      ensureAudioGraph();
+      if (autoplay){
+        audioEl.play().catch(function(){});
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+      }
+      usingRealAudio = true;
+      vizBadge.textContent = 'Radio';
+      vizBadge.className = 'viz-mode real';
+      syncNativeNowPlaying();
+
+      // Si aún no tenemos carátula para esta emisora, buscamos su logo real
+      // en Radio-Browser. Si para cuando responde ya se cambió de pista, se
+      // descarta (comprobando currentIndex) para no pisar la que suene ahora.
+      if (!item.cover){
+        fetchStationLogo(item.title, function(logoUrl){
+          if (logoUrl && currentIndex === i && playlist[i] === item){
+            item.cover = logoUrl;
+            setCover(item.cover, 'radio');
+            syncNativeNowPlaying();
+            renderPlaylist();
+          }
+        });
+      }
+      return;
+    }
+
+    // Archivo local recuperado de una lista guardada, reproducido directo
+    // desde su content:// URI persistente (sin volver a pedir la carpeta).
+    if (item.isLocalUri){
+      setNowPlayingTitle(item.title || item.fileName.replace(/\.[^/.]+$/, ''));
+      npArtist.textContent = item.artist || 'Leyendo etiquetas…';
+      setCover(item.cover, 'music');
+      renderPlaylist();
+      scrollActiveToTop();
+
+      setMediaSource(item.contentUri);
+      audioEl.playbackRate = speeds[speedIdx];
+      ensureAudioGraph();
+      if (autoplay){
+        audioEl.play().catch(function(){});
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        armStuckWatchdog();
+      }
+      usingRealAudio = true;
+      vizBadge.textContent = fileExtLabel(item.fileName);
+      vizBadge.className = 'viz-mode real';
+      syncNativeNowPlaying();
+
+      if (item.title === null && window.jsmediatags){
+        window.jsmediatags.read(item.contentUri, {
+          onSuccess: function(tag){
+            var t = tag.tags || {};
+            item.title = t.title || item.fileName.replace(/\.[^/.]+$/, '');
+            item.artist = t.artist || 'macroamd - player';
+            if (t.picture){
+              var bytes = t.picture.data;
+              var base64 = '';
+              for (var k=0;k<bytes.length;k++){ base64 += String.fromCharCode(bytes[k]); }
+              item.cover = 'data:' + t.picture.format + ';base64,' + window.btoa(base64);
+            }
+            if (currentIndex === i){
+              setNowPlayingTitle(item.title);
+              npArtist.textContent = item.artist;
+              setCover(item.cover, 'music');
+              syncNativeNowPlaying();
+            }
+            renderPlaylist();
+          },
+          onError: function(){
+            item.title = item.fileName.replace(/\.[^/.]+$/, '');
+            item.artist = 'Sin etiquetas';
+            if (currentIndex === i){
+              npArtist.textContent = item.artist;
+              syncNativeNowPlaying();
+            }
+            renderPlaylist();
+          }
+        });
+      }
+      return;
+    }
+
+    setNowPlayingTitle(item.title || item.file.name.replace(/\.[^/.]+$/, ''));
+    npArtist.textContent = item.artist || 'Leyendo etiquetas…';
+    setCover(item.cover, 'music');
+    renderPlaylist();
+    scrollActiveToTop();
+    syncNativeNowPlaying();
+
+    var url = createPlayableObjectURL(item.file);
+    setMediaSource(url);
+    audioEl.playbackRate = speeds[speedIdx];
+    ensureAudioGraph();
+    if (autoplay){
+      audioEl.play().catch(function(){});
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      armStuckWatchdog();
+    }
+    usingRealAudio = true;
+    vizBadge.textContent = fileExtLabel(item.file.name);
+    vizBadge.className = 'viz-mode real';
+
+    if (item.title === null && window.jsmediatags){
+      window.jsmediatags.read(item.file, {
+        onSuccess: function(tag){
+          var t = tag.tags || {};
+          item.title = t.title || item.file.name.replace(/\.[^/.]+$/, '');
+          item.artist = t.artist || 'macroamd - player';
+          if (t.picture){
+            var bytes = t.picture.data;
+            var base64 = '';
+            for (var k=0;k<bytes.length;k++){ base64 += String.fromCharCode(bytes[k]); }
+            item.cover = 'data:' + t.picture.format + ';base64,' + window.btoa(base64);
+          }
+          if (currentIndex === i){
+            setNowPlayingTitle(item.title);
+            npArtist.textContent = item.artist;
+            setCover(item.cover, 'music');
+            syncNativeNowPlaying();
+          }
+          renderPlaylist();
+        },
+        onError: function(){
+          item.title = item.file.name.replace(/\.[^/.]+$/, '');
+          item.artist = 'Sin etiquetas';
+          if (currentIndex === i){
+            npArtist.textContent = item.artist;
+            syncNativeNowPlaying();
+          }
+          renderPlaylist();
+        }
+      });
+    }
+  }
+
+  // Convierte la carátula que se está mostrando (sea JPEG en base64, o el SVG
+  // generado para música/radio) en un PNG en base64, para poder pasársela a la
+  // notificación nativa (Android no puede usar directamente un data:image/svg+xml).
+  function getCoverBase64PNG(callback){
+    try {
+      var imgEl = coverFrame.querySelector('img');
+      var src = imgEl ? imgEl.getAttribute('src') : null;
+      if (!src){ callback(null); return; }
+      var img = new Image();
+      // Los logos de emisoras (Radio-Browser) son de terceros: si el servidor
+      // no envía cabeceras CORS, el canvas queda "manchado" y toDataURL()
+      // lanzará una excepción más abajo, que ya capturamos con el try/catch.
+      // No pasa nada: simplemente esa carátula concreta no llegará a la
+      // notificación, pero se seguirá viendo bien dentro de la app.
+      img.crossOrigin = 'anonymous';
+      img.onload = function(){
+        try {
+          var size = 256;
+          var canvas = document.createElement('canvas');
+          canvas.width = size; canvas.height = size;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, size, size);
+          var dataUrl = canvas.toDataURL('image/png');
+          callback(dataUrl.split(',')[1] || null);
+        } catch (e){ callback(null); }
+      };
+      img.onerror = function(){ callback(null); };
+      img.src = src;
+    } catch (e){ callback(null); }
+  }
+
+  // Envía a la app nativa el título/artista, si está sonando y la carátula
+  // actual. El servicio nativo usa esto tanto para la notificación multimedia
+  // (persiana + pantalla de bloqueo) como para mantener la CPU/Wi-Fi
+  // despiertos mientras isPlaying sea true.
+  function syncNativeNowPlaying(){
+    if (window.AndroidPlayback && typeof window.AndroidPlayback.updateNowPlaying === 'function'){
+      var title = (npTitle.dataset.label || npTitle.textContent || '').trim();
+      var artist = (npArtist.textContent || '').trim();
+      var isPlaying = !audioEl.paused;
+      getCoverBase64PNG(function(coverBase64){
+        try {
+          window.AndroidPlayback.updateNowPlaying(title, artist, isPlaying, coverBase64 || '');
+        } catch (e){}
+      });
+    }
+  }
+
+  // La app nativa llama a esto cuando el usuario pulsa los controles desde la
+  // notificación o la pantalla de bloqueo.
+  window.__nativeMediaControl = function(action){
+    if (action === 'playpause'){
+      if (currentIndex === -1) return;
+      if (audioEl.paused){
+        audioEl.play();
+        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      } else {
+        audioEl.pause();
+      }
+    } else if (action === 'pause'){
+      // A diferencia de 'playpause' (que alterna), esto SIEMPRE para,
+      // pase lo que pase. Lo usa el servicio nativo cuando se cierra la
+      // app o se descarta la notificación, para asegurarse de que el
+      // audio se detiene de verdad y no se queda sonando "huérfano".
+      audioEl.pause();
+    } else if (action === 'next'){
+      if (playlist.length) loadTrack(nextIndex(), true);
+    } else if (action === 'prev'){
+      if (playlist.length) loadTrack(currentIndex - 1, true);
+    }
+  };
+
+  audioEl.addEventListener('play', function(){
+    playIcon.innerHTML = '<path d="M6 5h4v14H6zm8 0h4v14h-4z"/>';
+    coverModalPlayIcon.innerHTML = '<path d="M6 5h4v14H6zm8 0h4v14h-4z"/>';
+    syncNativeNowPlaying();
+  });
+  audioEl.addEventListener('pause', function(){
+    playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+    coverModalPlayIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+    syncNativeNowPlaying();
+  });
+  audioEl.addEventListener('ended', function(){
+    var isLast = (currentIndex === playlist.length - 1);
+    if (loopMode === 'once' && !shuffle && isLast){
+      playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+      syncNativeNowPlaying();
+      return;
+    }
+    loadTrack(nextIndex(), true);
+  });
+  audioEl.addEventListener('error', function(){
+    var err = audioEl.error;
+    var messages = {
+      1: 'Carga cancelada',
+      2: 'Error de red al cargar el archivo',
+      3: 'No se pudo decodificar el archivo (formato/códec no soportado)',
+      4: 'Formato de archivo no soportado por el reproductor'
+    };
+    var detail = err ? (messages[err.code] || ('Error desconocido (código ' + err.code + ')')) : 'Error desconocido';
+    console.error('Error de reproducción:', detail, item_debug_name());
+
+    // Algunos flujos de TV/IPTV son HLS de verdad pero su URL no termina en
+    // ".m3u8" (a veces llevan un token o parámetros raros al final), así que
+    // el primer intento (reproducción directa) falla. Antes de rendirnos,
+    // probamos una vez con hls.js por si acierta.
+    if (!lastMediaTriedHls && lastMediaUrl && window.Hls && window.Hls.isSupported() &&
+        playlist[currentIndex] && (playlist[currentIndex].isRadio || playlist[currentIndex].isLocalUri)){
+      console.log('Reintentando con hls.js:', lastMediaUrl);
+      setMediaSource(lastMediaUrl, true);
+      audioEl.play().catch(function(){});
+      return;
+    }
+
+    clearStuckWatchdog();
+
+    var item = playlist[currentIndex];
+
+    // Si era una pista recuperada de una lista guardada por content:// URI y
+    // falla (permiso revocado, carpeta movida/borrada...), lo más probable
+    // es que ya no tengamos acceso, no que el archivo sea incompatible.
+    // La degradamos a "pendiente" para que se pueda recuperar re-eligiendo
+    // la carpeta, en vez de marcarla como no compatible para siempre.
+    if (item && item.isLocalUri){
+      playlist[currentIndex] = { pendingFile:true, fileName:item.fileName, title:null, artist:null, cover:null, file:null };
+      npArtist.textContent = 'Se perdió el acceso: vuelve a elegir la carpeta';
+      playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+      syncNativeNowPlaying();
+      renderPlaylist();
+      if (playlist.length > 1){
+        setTimeout(function(){
+          if (currentIndex !== -1 && playlist[currentIndex] && playlist[currentIndex].pendingFile){
+            loadTrack(nextIndex(), true);
+          }
+        }, 2000);
+      }
+      return;
+    }
+
+    if (item){ item.unsupported = true; }
+
+    npArtist.textContent = 'No compatible';
+    playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+    syncNativeNowPlaying();
+    renderPlaylist();
+
+    // No dejamos el reproductor parado en una pista que no suena: si hay más
+    // de una pista en la lista, saltamos sola a la siguiente a los 2s.
+    if (playlist.length > 1){
+      setTimeout(function(){
+        if (currentIndex !== -1 && playlist[currentIndex] && playlist[currentIndex].unsupported){
+          loadTrack(nextIndex(), true);
+        }
+      }, 2000);
+    }
+  });
+
+  // --- Diagnóstico extra: detecta cuando el archivo se queda "cargando" sin
+  // avanzar y sin llegar a disparar 'error' (típico de algunos .m4a dentro
+  // del WebView nativo al venir de un content:// en vez de un File directo).
+  var stuckWatchdogTimer = null;
+  function clearStuckWatchdog(){
+    if (stuckWatchdogTimer){ clearTimeout(stuckWatchdogTimer); stuckWatchdogTimer = null; }
+  }
+  function armStuckWatchdog(){
+    clearStuckWatchdog();
+    var startedAt = Date.now();
+    stuckWatchdogTimer = setTimeout(function(){
+      if (audioEl.currentTime === 0 && audioEl.readyState < 2){
+        console.warn('Reproducción atascada (readyState=' + audioEl.readyState + ') tras 5s:', item_debug_name());
+        var item = playlist[currentIndex];
+        if (item){ item.unsupported = true; }
+        npArtist.textContent = 'No compatible';
+        playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+        syncNativeNowPlaying();
+        renderPlaylist();
+        if (playlist.length > 1){
+          setTimeout(function(){
+            if (currentIndex !== -1 && playlist[currentIndex] && playlist[currentIndex].unsupported){
+              loadTrack(nextIndex(), true);
+            }
+          }, 1500);
+        }
+      }
+    }, 5000);
+  }
+  audioEl.addEventListener('loadedmetadata', function(){
+    console.log('loadedmetadata: duration=', audioEl.duration, item_debug_name());
+    var hasVideo = audioEl.videoWidth > 0 && audioEl.videoHeight > 0;
+    videoFrame.style.display = hasVideo ? 'flex' : 'none';
+    coverFrame.style.display = hasVideo ? 'none' : '';
+    if (hasVideo){
+      npArtist.textContent = 'Vídeo';
+      syncNativeNowPlaying();
+    }
+  });
+  audioEl.addEventListener('canplay', function(){
+    console.log('canplay:', item_debug_name());
+    clearStuckWatchdog();
+  });
+  audioEl.addEventListener('stalled', function(){
+    console.warn('stalled:', item_debug_name());
+  });
+  audioEl.addEventListener('waiting', function(){
+    console.warn('waiting:', item_debug_name());
+  });
+
+  function item_debug_name(){
+    var it = playlist[currentIndex];
+    return it && it.file ? it.file.name : (it ? it.title : '');
+  }
+  audioEl.addEventListener('timeupdate', function(){
+    if (audioEl.duration){
+      var pct = (audioEl.currentTime / audioEl.duration) * 100;
+      seek.value = pct;
+      curTime.textContent = fmtTime(audioEl.currentTime);
+      durTime.textContent = fmtTime(audioEl.duration);
+      coverModalSeek.value = pct;
+      coverModalCur.textContent = fmtTime(audioEl.currentTime);
+      coverModalDur.textContent = fmtTime(audioEl.duration);
+    }
+  });
+  seek.addEventListener('input', function(){
+    if (audioEl.duration){
+      audioEl.currentTime = (seek.value/100) * audioEl.duration;
+    }
+  });
+
+  btnPlay.addEventListener('click', function(){
+    if (currentIndex === -1) return;
+    if (audioEl.paused){
+      audioEl.play();
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      armStuckWatchdog();
+    } else {
+      audioEl.pause();
+    }
+  });
+  btnPrev.addEventListener('click', function(){ if (playlist.length) loadTrack(currentIndex - 1, true); });
+  btnNext.addEventListener('click', function(){ if (playlist.length) loadTrack(nextIndex(), true); });
+
+  // Pantalla completa para pistas de vídeo real (algunas listas M3U/IPTV
+  // mezclan canales de vídeo con emisoras de solo audio).
+  function toggleFullscreen(){
+    var isFs = document.fullscreenElement || document.webkitFullscreenElement;
+    if (isFs){
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    } else if (audioEl.requestFullscreen){
+      audioEl.requestFullscreen();
+    } else if (audioEl.webkitEnterFullscreen){
+      // Safari/iOS: los <video> tienen su propia API de pantalla completa
+      audioEl.webkitEnterFullscreen();
+    } else if (audioEl.webkitRequestFullscreen){
+      audioEl.webkitRequestFullscreen();
+    }
+  }
+  fullscreenBtn.addEventListener('click', function(e){
+    e.stopPropagation();
+    toggleFullscreen();
+  });
+  videoFrame.addEventListener('dblclick', toggleFullscreen);
+
+  // Modal de carátula ampliada
+  var coverModal = document.getElementById('coverModal');
+  var coverModalImg = document.getElementById('coverModalImg');
+  var coverModalTitle = document.getElementById('coverModalTitle');
+  var coverModalArtist = document.getElementById('coverModalArtist');
+  var coverModalClose = document.getElementById('coverModalClose');
+  var coverModalPrev = document.getElementById('coverModalPrev');
+  var coverModalPlay = document.getElementById('coverModalPlay');
+  var coverModalPlayIcon = document.getElementById('coverModalPlayIcon');
+  var coverModalNext = document.getElementById('coverModalNext');
+  var coverModalSeek = document.getElementById('coverModalSeek');
+  var coverModalCur = document.getElementById('coverModalCur');
+  var coverModalDur = document.getElementById('coverModalDur');
+
+  function syncCoverModal(){
+    var img = coverFrame.querySelector('img');
+    coverModalImg.src = img ? img.src : '';
+    coverModalTitle.textContent = npTitle.dataset.label || npTitle.textContent;
+    coverModalArtist.textContent = npArtist.textContent;
+    coverModalPlayIcon.innerHTML = audioEl.paused
+      ? '<path d="M8 5v14l11-7z"/>'
+      : '<path d="M6 5h4v14H6zm8 0h4v14h-4z"/>';
+  }
+
+  function openCoverModal(){
+    if (currentIndex === -1) return; // solo si hay algo cargado
+    syncCoverModal();
+    coverModal.classList.add('open');
+  }
+  function closeCoverModal(){ coverModal.classList.remove('open'); }
+
+  coverFrame.addEventListener('dblclick', openCoverModal);
+  coverModalClose.addEventListener('click', closeCoverModal);
+  coverModal.addEventListener('click', function(e){
+    if (e.target === coverModal) closeCoverModal();
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && coverModal.classList.contains('open')) closeCoverModal();
+  });
+
+  coverModalPlay.addEventListener('click', function(){
+    if (currentIndex === -1) return;
+    if (audioEl.paused){
+      audioEl.play();
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    } else {
+      audioEl.pause();
+    }
+  });
+  coverModalPrev.addEventListener('click', function(){ if (playlist.length) loadTrack(currentIndex - 1, true); });
+  coverModalNext.addEventListener('click', function(){ if (playlist.length) loadTrack(nextIndex(), true); });
+  coverModalSeek.addEventListener('input', function(){
+    if (audioEl.duration){
+      audioEl.currentTime = (coverModalSeek.value/100) * audioEl.duration;
+    }
+  });
+
+  // LED grid build
+  var grid = document.getElementById('ledGrid');
+  var COLS = 22, SEGS = 12;
+  var cols = [];
+  for (var c=0;c<COLS;c++){
+    var col = document.createElement('div');
+    col.className='led-col';
+    var segs=[];
+    for (var s=0;s<SEGS;s++){
+      var seg=document.createElement('div');
+      seg.className='led-seg';
+      col.appendChild(seg);
+      segs.push(seg);
+    }
+    grid.appendChild(col);
+    cols.push({segs:segs, phase:Math.random()*Math.PI*2, speed:0.6+Math.random()*0.8});
+  }
+  function colorFor(segIndex, total){
+    var ratio = segIndex/total;
+    if (ratio < 0.55) return '#3CFF7A';
+    if (ratio < 0.82) return '#FFC93C';
+    return '#FF3B5C';
+  }
+  function paintCol(col, level){
+    var lit = Math.round(level*SEGS);
+    col.segs.forEach(function(seg, i){
+      if (i < lit){
+        var c2 = colorFor(i, SEGS);
+        seg.style.background = c2;
+        seg.style.boxShadow = '0 0 6px ' + c2 + '55';
+      } else {
+        seg.style.background = '#1E2027';
+        seg.style.boxShadow = 'none';
+      }
+    });
+  }
+
+  // Vista y canvas de columnas sólidas
+  var vizView = 'bars'; // 'bars' | 'columns' | 'waves'
+  var vizCanvas = document.getElementById('vizCanvas');
+  var vctx = vizCanvas.getContext('2d');
+  var vizViewToggle = document.getElementById('vizViewToggle');
+
+  vizViewToggle.addEventListener('click', function(){
+    if (vizView === 'bars'){
+      vizView = 'columns';
+      vizViewToggle.textContent = 'COL';
+      grid.style.display = 'none';
+      vizCanvas.style.display = 'block';
+    } else if (vizView === 'columns'){
+      vizView = 'waves';
+      vizViewToggle.textContent = 'OND';
+      grid.style.display = 'none';
+      vizCanvas.style.display = 'block';
+    } else {
+      vizView = 'bars';
+      vizViewToggle.textContent = 'LED';
+      vizCanvas.style.display = 'none';
+      grid.style.display = 'flex';
+    }
+    showToast('Visualizador: ' + (vizView === 'bars' ? 'Barras LED' : vizView === 'columns' ? 'Columnas' : 'Ondas'));
+  });
+
+  // Ecualizador
+  var eqToggle = document.getElementById('eqToggle');
+  var eqPanel = document.getElementById('eqPanel');
+  var eqLowSlider = document.getElementById('eqLowSlider');
+  var eqMidSlider = document.getElementById('eqMidSlider');
+  var eqHighSlider = document.getElementById('eqHighSlider');
+  var eqLowVal = document.getElementById('eqLowVal');
+  var eqMidVal = document.getElementById('eqMidVal');
+  var eqHighVal = document.getElementById('eqHighVal');
+  var eqReset = document.getElementById('eqReset');
+
+  var eqModal = document.getElementById('eqModal');
+  var eqModalClose = document.getElementById('eqModalClose');
+  function openEqModal(){ eqModal.classList.add('open'); showToast('Ecualizador'); }
+  function closeEqModal(){ eqModal.classList.remove('open'); }
+  eqToggle.addEventListener('click', openEqModal);
+  eqModalClose.addEventListener('click', closeEqModal);
+  eqModal.addEventListener('click', function(e){ if (e.target === eqModal) closeEqModal(); });
+
+  // Panel de color
+  var colorToggle = document.getElementById('colorToggle');
+  var colorPanel = document.getElementById('colorPanel');
+  var colorModal = document.getElementById('colorModal');
+  var colorModalClose = document.getElementById('colorModalClose');
+  function openColorModal(){ colorModal.classList.add('open'); showToast('Color'); }
+  function closeColorModal(){ colorModal.classList.remove('open'); }
+  colorToggle.addEventListener('click', openColorModal);
+  colorModalClose.addEventListener('click', closeColorModal);
+  colorModal.addEventListener('click', function(e){ if (e.target === colorModal) closeColorModal(); });
+
+  document.addEventListener('keydown', function(e){
+    if (e.key !== 'Escape') return;
+    if (eqModal.classList.contains('open')) closeEqModal();
+    if (colorModal.classList.contains('open')) closeColorModal();
+  });
+
+  // Evita que la pantalla se apague/bloquee, usando la Screen Wake Lock API.
+  // Hay dos motivos independientes que pueden querer esto activo a la vez:
+  // el botón "Pant" (manual) y el vídeo en pantalla completa (automático).
+  // Se mantiene encendida mientras CUALQUIERA de los dos lo pida, y solo se
+  // libera cuando ninguno de los dos lo necesita ya.
+  var wakeLockToggle = document.getElementById('wakeLockToggle');
+  var wakeLockSentinel = null;
+  var wakeLockWantedManual = false;
+  var wakeLockWantedFullscreen = false;
+
+  async function requestWakeLock(){
+    if (!('wakeLock' in navigator)) return false;
+    try {
+      wakeLockSentinel = await navigator.wakeLock.request('screen');
+      wakeLockSentinel.addEventListener('release', function(){
+        wakeLockSentinel = null;
+      });
+      return true;
+    } catch (e){
+      console.warn('No se pudo activar el wake lock de pantalla:', e);
+      return false;
+    }
+  }
+
+  async function updateWakeLockDesired(){
+    var wanted = wakeLockWantedManual || wakeLockWantedFullscreen;
+    if (wanted){
+      if (!wakeLockSentinel) await requestWakeLock();
+    } else if (wakeLockSentinel){
+      try { await wakeLockSentinel.release(); } catch(e){}
+      wakeLockSentinel = null;
+    }
+  }
+
+  wakeLockToggle.addEventListener('click', async function(){
+    if (!wakeLockWantedManual){
+      wakeLockWantedManual = true;
+      await updateWakeLockDesired();
+      if (!wakeLockSentinel){
+        wakeLockWantedManual = false;
+        wakeLockToggle.title = 'Tu dispositivo/navegador no soporta mantener la pantalla encendida';
+        return;
+      }
+      wakeLockToggle.classList.add('active');
+      showToast('Pantalla siempre activa');
+    } else {
+      wakeLockWantedManual = false;
+      wakeLockToggle.classList.remove('active');
+      await updateWakeLockDesired();
+      showToast('Pantalla temporizada');
+    }
+  });
+
+  // Vídeo en pantalla completa: mientras esté activa, mantenemos la pantalla
+  // encendida automáticamente, sin que haga falta activar "Pant" a mano.
+  function onFullscreenChangeForWakeLock(){
+    var fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+    wakeLockWantedFullscreen = !!fsEl;
+    updateWakeLockDesired();
+  }
+  document.addEventListener('fullscreenchange', onFullscreenChangeForWakeLock);
+  document.addEventListener('webkitfullscreenchange', onFullscreenChangeForWakeLock);
+
+  document.addEventListener('visibilitychange', function(){
+    if (document.visibilityState === 'visible' && !wakeLockSentinel &&
+        (wakeLockWantedManual || wakeLockWantedFullscreen)){
+      requestWakeLock();
+    }
+  });
+
+  var EQ_STORAGE_KEY = 'macroamd_eq_bands';
+  function saveEqBands(){
+    try {
+      window.localStorage.setItem(EQ_STORAGE_KEY, JSON.stringify({
+        low: eqLowSlider.value, mid: eqMidSlider.value, high: eqHighSlider.value
+      }));
+    } catch(_){}
+  }
+  function loadEqBands(){
+    try {
+      var raw = window.localStorage.getItem(EQ_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch(_){ return null; }
+  }
+
+  function applyEq(){
+    if (eqLow) eqLow.gain.value = +eqLowSlider.value;
+    if (eqMid) eqMid.gain.value = +eqMidSlider.value;
+    if (eqHigh) eqHigh.gain.value = +eqHighSlider.value;
+    eqLowVal.textContent = eqLowSlider.value + ' dB';
+    eqMidVal.textContent = eqMidSlider.value + ' dB';
+    eqHighVal.textContent = eqHighSlider.value + ' dB';
+  }
+  window.applyEqInit = applyEq;
+
+  (function initEqBands(){
+    var saved = loadEqBands();
+    if (saved){
+      eqLowSlider.value = saved.low;
+      eqMidSlider.value = saved.mid;
+      eqHighSlider.value = saved.high;
+    }
+    applyEq();
+  })();
+
+  eqLowSlider.addEventListener('input', applyEq);
+  eqMidSlider.addEventListener('input', applyEq);
+  eqHighSlider.addEventListener('input', applyEq);
+  eqLowSlider.addEventListener('change', saveEqBands);
+  eqMidSlider.addEventListener('change', saveEqBands);
+  eqHighSlider.addEventListener('change', saveEqBands);
+  eqReset.addEventListener('click', function(){
+    eqLowSlider.value = 0; eqMidSlider.value = 0; eqHighSlider.value = 0;
+    applyEq();
+    saveEqBands();
+  });
+
+  function withAlpha(colorStr, alpha){
+    var m = /rgb\(([^)]+)\)/.exec(colorStr || '');
+    if (m) return 'rgba(' + m[1] + ',' + alpha + ')';
+    return colorStr;
+  }
+
+  function drawWaves(active){
+    var W = vizCanvas.width, H = vizCanvas.height;
+    vctx.clearRect(0, 0, W, H);
+    if (!timeData) return;
+
+    if (active && analyser){
+      analyser.getByteTimeDomainData(timeData);
+    } else {
+      for (var z=0; z<timeData.length; z++) timeData[z] = 128;
+    }
+
+    var accent = accentColor();
+    var midY = H/2;
+    var sliceW = W / (timeData.length - 1);
+
+    vctx.lineWidth = 2.5;
+    vctx.strokeStyle = accent;
+    vctx.shadowColor = withAlpha(accent, 0.55);
+    vctx.shadowBlur = 7;
+    vctx.beginPath();
+    var x = 0;
+    for (var i=0; i<timeData.length; i++){
+      var v = timeData[i] / 128.0; // ~0..2, 1 = silencio
+      var y = midY + (v - 1) * (H/2 - 8);
+      if (i === 0) vctx.moveTo(x, y); else vctx.lineTo(x, y);
+      x += sliceW;
+    }
+    vctx.stroke();
+    vctx.shadowBlur = 0;
+
+    // Línea central tenue de referencia
+    vctx.strokeStyle = withAlpha(accent, 0.15);
+    vctx.lineWidth = 1;
+    vctx.beginPath();
+    vctx.moveTo(0, midY);
+    vctx.lineTo(W, midY);
+    vctx.stroke();
+  }
+
+  function drawColumns(active){
+    var W = vizCanvas.width, H = vizCanvas.height;
+    vctx.clearRect(0, 0, W, H);
+    var levels = [];
+    if (active && analyser){
+      analyser.getByteFrequencyData(freqData);
+      var bins = freqData.length;
+      var perCol = Math.max(1, Math.floor(bins/COLS));
+      for (var i=0;i<COLS;i++){
+        var start = i*perCol, sum=0;
+        for (var k=0;k<perCol;k++){ sum += freqData[start+k] || 0; }
+        levels.push(Math.min(1, (sum/perCol/255)*1.15));
+      }
+    } else {
+      for (var j=0;j<COLS;j++) levels.push(0.03);
+    }
+
+    var pad = 10;
+    var innerW = W - pad*2;
+    var baseY = H - pad;
+    var topPad = pad;
+    var gap = 4;
+    var colW = (innerW - gap*(COLS-1)) / COLS;
+
+    for (var s=0;s<levels.length;s++){
+      var x = pad + s*(colW+gap);
+      var barH = (baseY - topPad) * levels[s];
+      var y = baseY - barH;
+
+      // Degradado verde -> ámbar -> rojo de abajo hacia arriba (colores LED)
+      var grad = vctx.createLinearGradient(0, baseY, 0, topPad);
+      grad.addColorStop(0, '#3CFF7A');
+      grad.addColorStop(0.55, '#3CFF7A');
+      grad.addColorStop(0.72, '#FFC93C');
+      grad.addColorStop(0.88, '#FF3B5C');
+      grad.addColorStop(1, '#FF3B5C');
+      vctx.fillStyle = grad;
+
+      // Recorte para que cada columna solo muestre la parte del degradado hasta su altura
+      vctx.save();
+      vctx.beginPath();
+      vctx.rect(x, y, colW, barH);
+      vctx.clip();
+      vctx.fillRect(x, topPad, colW, baseY - topPad);
+      vctx.restore();
+    }
+  }
+
+  var t = 0;
+  function checkTrailingSilence(){
+    // Solo cuando el modo está activo, hay pista sonando y estamos cerca del final
+    if (!trimSilence || !analyser || audioEl.paused || !audioEl.duration) { silenceFrames = 0; return; }
+    var remaining = audioEl.duration - audioEl.currentTime;
+    if (remaining > 12 || remaining < 0.15){ silenceFrames = 0; return; }
+
+    // Nivel medio actual (0-1)
+    analyser.getByteFrequencyData(freqData);
+    var sum = 0;
+    for (var i=0;i<freqData.length;i++){ sum += freqData[i]; }
+    var level = sum / freqData.length / 255;
+
+    // Umbral de silencio; se necesitan varios frames seguidos para evitar cortes por pausas breves
+    if (level < 0.045){
+      silenceFrames++;
+      if (silenceFrames >= 6){
+        silenceFrames = 0;
+        var isLast = (currentIndex === playlist.length - 1);
+        if (loopMode === 'once' && !shuffle && isLast){
+          audioEl.pause();
+        } else {
+          loadTrack(nextIndex(), true);
+        }
+      }
+    } else {
+      silenceFrames = 0;
+    }
+  }
+
+  function tick(){
+    t += 0.05;
+    var active = usingRealAudio && analyser && !audioEl.paused;
+    checkTrailingSilence();
+    if (vizView === 'bars'){
+      if (active){
+        analyser.getByteFrequencyData(freqData);
+        var bins = freqData.length;
+        var perCol = Math.max(1, Math.floor(bins/COLS));
+        cols.forEach(function(col, i){
+          var start = i*perCol;
+          var sum=0;
+          for (var k=0;k<perCol;k++){ sum += freqData[start+k] || 0; }
+          var avg = sum/perCol/255;
+          paintCol(col, Math.min(1, avg*1.15));
+        });
+      } else {
+        cols.forEach(function(col){ paintCol(col, 0.04); });
+      }
+    } else if (vizView === 'columns'){
+      drawColumns(active);
+    } else {
+      drawWaves(active);
+    }
+    requestAnimationFrame(tick);
+  }
+  tick();
+
+  // Personalización del color de los botones (RGB)
+  var rSlider = document.getElementById('rSlider');
+  var gSlider = document.getElementById('gSlider');
+  var bSlider = document.getElementById('bSlider');
+  var rVal = document.getElementById('rVal');
+  var gVal = document.getElementById('gVal');
+  var bVal = document.getElementById('bVal');
+  var rgbSwatch = document.getElementById('rgbSwatch');
+  var presetSelect = document.getElementById('presetSelect');
+  var root = document.documentElement;
+
+  function luminance(r,g,b){ return (0.299*r + 0.587*g + 0.114*b); }
+
+  var COLOR_STORAGE_KEY = 'macroamd_accent_color';
+  function saveAccentColor(r,g,b){
+    try { window.localStorage.setItem(COLOR_STORAGE_KEY, r + ',' + g + ',' + b); } catch(_){}
+  }
+  function loadAccentColor(){
+    try {
+      var raw = window.localStorage.getItem(COLOR_STORAGE_KEY);
+      if (!raw) return null;
+      var parts = raw.split(',').map(Number);
+      if (parts.length === 3 && parts.every(function(n){ return !isNaN(n); })) return parts;
+    } catch(_){}
+    return null;
+  }
+
+  function applyButtonColor(r,g,b){
+    var rgbStr = 'rgb(' + r + ',' + g + ',' + b + ')';
+    root.style.setProperty('--led-green', rgbStr);
+    var textColor = luminance(r,g,b) > 150 ? '#0A0B0D' : '#FFFFFF';
+    root.style.setProperty('--btn-text', textColor);
+    rgbSwatch.style.background = rgbStr;
+    rVal.textContent = r; gVal.textContent = g; bVal.textContent = b;
+    rSlider.value = r; gSlider.value = g; bSlider.value = b;
+    // Actualizar carátula por defecto (nota musical / radio) al nuevo color
+    if (coverMode === 'music' || coverMode === 'radio') renderCover();
+  }
+
+  function onSliderChange(){
+    applyButtonColor(+rSlider.value, +gSlider.value, +bSlider.value);
+  }
+  rSlider.addEventListener('input', onSliderChange);
+  gSlider.addEventListener('input', onSliderChange);
+  bSlider.addEventListener('input', onSliderChange);
+  rSlider.addEventListener('change', function(){ saveAccentColor(+rSlider.value, +gSlider.value, +bSlider.value); });
+  gSlider.addEventListener('change', function(){ saveAccentColor(+rSlider.value, +gSlider.value, +bSlider.value); });
+  bSlider.addEventListener('change', function(){ saveAccentColor(+rSlider.value, +gSlider.value, +bSlider.value); });
+
+  presetSelect.addEventListener('change', function(){
+    var parts = presetSelect.value.split(',').map(Number);
+    applyButtonColor(parts[0], parts[1], parts[2]);
+    saveAccentColor(parts[0], parts[1], parts[2]);
+  });
+
+  (function initAccentColor(){
+    var saved = loadAccentColor();
+    if (saved){ applyButtonColor(saved[0], saved[1], saved[2]); }
+    else { applyButtonColor(60, 255, 122); }
+  })();
+})();
+</script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('service-worker.js').catch(function (err) {
+        console.warn('No se pudo registrar el service worker:', err);
+      });
+    });
+  }
+</script>
+</body>
+</html>
