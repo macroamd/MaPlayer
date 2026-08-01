@@ -34,4 +34,4 @@ MaPlayer se distribuye como `.AppImage` para Linux (probado en Ubuntu 22.04
 
 ## Licencia
 
-Pendiente de definir por Macroamd.
+GNU General Public License v3.0
